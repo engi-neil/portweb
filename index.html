@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>nmacaro@portfolio</title>
+    <!-- Font for CRT view -->
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <style>
         /* Strict Monochrome Palette - Used as variables for theme swapping */
         :root {
@@ -41,7 +43,8 @@
             color: var(--fg-main);
             height: 24px;
         }
-        .workspaces span { margin-right: 4px; color: var(--fg-dim); }
+        .workspaces span { margin-right: 4px; color: var(--fg-dim); cursor: pointer; transition: color 0.2s;}
+        .workspaces span:hover { color: var(--fg-main); }
         .workspaces span.active { color: var(--bg-base); font-weight: bold; background: var(--fg-main); padding: 0 4px; border-radius: 2px;}
         .tray { display: flex; gap: 6px; color: var(--fg-dim); }
 
@@ -52,7 +55,17 @@
             padding: 8px;
             gap: 4px;
             height: calc(100vh - 24px);
+            overflow: hidden;
         }
+
+        /* TTY Containers */
+        .tty-content {
+            display: none;
+            width: 100%;
+            height: 100%;
+            gap: 4px;
+        }
+        .tty-content.active { display: flex; }
 
         /* Pane Shared Styles */
         .pane {
@@ -128,14 +141,14 @@
         }
 
         /* --- Right Pane: Functional Terminal --- */
-        #right-pane {
+        #right-pane, #tty2-pane {
             flex: 1;
             display: flex;
             flex-direction: column;
             cursor: text;
         }
 
-        #terminal-output {
+        .terminal-output {
             flex: 1;
             padding: 16px;
             overflow-y: auto;
@@ -145,19 +158,19 @@
         }
 
         /* Input Area */
-        #input-area {
+        .input-area {
             display: flex;
             padding: 0 16px 16px 16px;
             gap: 8px;
             align-items: center;
         }
 
-        #cmd-input {
+        .cmd-input {
             background: transparent;
             border: none;
             color: var(--fg-main);
-            font-family: var(--font-main);
-            font-size: 12px;
+            font-family: inherit;
+            font-size: inherit;
             flex: 1;
             outline: none;
         }
@@ -167,6 +180,10 @@
         .term-cmd { color: var(--fg-main); }
         .term-prompt { color: var(--fg-main); font-weight: bold; }
         .term-prompt::after { content: "❯"; margin-left: 6px; margin-right: 6px;}
+        
+        /* Root User Formatting */
+        .root-prompt { color: #ff5555 !important; }
+        .root-prompt::after { content: "#" !important; }
 
         /* Document Formatting inside Terminal */
         .doc-render { 
@@ -214,7 +231,7 @@
             margin-left: 0; 
             line-height: 1.4;
         }
-        .doc-render a { color: var(--fg-main); text-decoration: underline; }
+        .doc-render a { color: var(--fg-main); text-decoration: underline; cursor: pointer;}
 
         /* Neofetch Styling */
         .neofetch-wrapper { display: flex; gap: 24px; align-items: flex-start; margin-bottom: 12px;}
@@ -226,6 +243,96 @@
         .sys-val { color: var(--fg-main); }
         .color-blocks { display: flex; margin-top: 8px; gap: 0;}
         .cb { width: 14px; height: 14px; }
+
+        /* =========================================
+           CRT THEME STYLING (TTY2)
+           ========================================= */
+        #tty2-pane {
+            font-family: 'VT323', monospace;
+            font-size: 18px; 
+            --bg-pane: #030803; 
+            --fg-main: #33ff33; 
+            --fg-dim: #11aa11;
+            --border: #33ff33;
+            color: var(--fg-main);
+            position: relative;
+            background: var(--bg-pane);
+            overflow: hidden;
+        }
+        
+        #tty2-pane .input-area { 
+            padding-bottom: 16px; 
+            border-top: 1px solid rgba(51, 255, 51, 0.3); 
+            display: none; /* Hidden until boot completes */
+            gap: 0; /* Remove gap so the block cursor hugs the text */
+        }
+        #tty2-pane .input-area .term-prompt { margin-right: 8px; }
+        #tty2-pane .input-area .term-prompt::after { content: '$'; color: var(--fg-main); margin-left: 6px; margin-right: 0px; font-weight: bold; }
+        
+        /* CRT Vignette & Screen Curvature */
+        #tty2-pane::before {
+            content: " ";
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, rgba(0,0,0,0) 60%, rgba(0,0,0,0.5) 100%);
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        /* Animated Scanlines */
+        #tty2-pane::after {
+            content: " ";
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 4px, 3px 100%;
+            z-index: 2;
+            pointer-events: none; 
+            animation: scanlines 10s linear infinite;
+        }
+
+        @keyframes scanlines {
+            0% { background-position: 0 0, 0 0; }
+            100% { background-position: 0 400px, 0 0; }
+        }
+
+        /* Text Phosphor Glow & Flicker */
+        #tty2-pane .terminal-output, #tty2-pane .input-area {
+            animation: text-flicker 0.15s infinite alternate;
+            position: relative;
+            z-index: 1; 
+        }
+
+        @keyframes text-flicker {
+            0% { opacity: 0.95; text-shadow: 0 0 3px rgba(51, 255, 51, 0.5); }
+            100% { opacity: 1; text-shadow: 0 0 6px rgba(51, 255, 51, 0.8), 0 0 1px rgba(255,255,255,0.2); }
+        }
+
+        /* Typewriter & Cursor Styles */
+        #tty2-pane .cmd-input {
+            caret-color: transparent;
+            flex: none; /* Prevents the input from stretching across the screen */
+        }
+        
+        #tty2-pane .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 1.2em;
+            background-color: var(--fg-main);
+            animation: blink 1s step-end infinite;
+            vertical-align: bottom;
+            margin-left: 0px;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        #tty2-pane h2 { border-bottom: 1px dashed var(--fg-main); }
+        #tty2-pane .dash-separator { color: var(--fg-dim); font-size: 14px; margin: 6px 0; user-select: none;}
 
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -242,8 +349,8 @@
 
     <div id="topbar">
         <div class="workspaces">
-            <span class="active">1:SYS</span>
-            <span>2:DEV</span>
+            <span id="ws1" class="active" onclick="switchTty(0)">1:SYS (TTY1)</span>
+            <span id="ws2" onclick="switchTty(1)">2:DEV (TTY2)</span>
         </div>
         <div class="clock" id="clock">00:00</div>
         <div class="tray">
@@ -255,28 +362,43 @@
     </div>
 
     <div id="wm-container">
-        <div id="left-pane" class="pane">
-            <div id="ranger-cols">
-                <div class="r-col">
-                    <div class="r-col-header">~/portfolio</div>
-                    <div class="r-col-content" id="col1-content"></div>
+        <!-- TTY1: SYS (Original Dual Pane) -->
+        <div id="tty1-content" class="tty-content active">
+            <div id="left-pane" class="pane">
+                <div id="ranger-cols">
+                    <div class="r-col">
+                        <div class="r-col-header">~/portfolio</div>
+                        <div class="r-col-content" id="col1-content"></div>
+                    </div>
+                    <div class="r-col">
+                        <div class="r-col-header" id="col2-header">contents</div>
+                        <div class="r-col-content" id="col2-content"></div>
+                    </div>
                 </div>
-                <div class="r-col">
-                    <div class="r-col-header" id="col2-header">contents</div>
-                    <div class="r-col-content" id="col2-content"></div>
+                <div id="ranger-status">
+                    <span id="ranger-status-left">NOR | ~/portfolio</span>
+                    <span id="ranger-status-right">drwxr-xr-x</span>
                 </div>
             </div>
-            <div id="ranger-status">
-                <span id="status-left">NOR | ~/portfolio</span>
-                <span id="status-right">drwxr-xr-x</span>
+
+            <div id="right-pane" class="pane terminal-container">
+                <div id="terminal-output1" class="terminal-output"></div>
+                <div class="input-area">
+                    <span class="term-prompt" id="cli-prompt1">nmacaro@portfolio:~</span>
+                    <input type="text" id="cmd-input1" class="cmd-input" autocomplete="off" spellcheck="false" autofocus>
+                </div>
             </div>
         </div>
 
-        <div id="right-pane" class="pane">
-            <div id="terminal-output"></div>
-            <div id="input-area">
-                <span class="term-prompt" id="cli-prompt">nmacaro@portfolio:~</span>
-                <input type="text" id="cmd-input" autocomplete="off" spellcheck="false" autofocus>
+        <!-- TTY2: DEV (Full Retro CRT CLI) -->
+        <div id="tty2-content" class="tty-content">
+            <div id="tty2-pane" class="pane terminal-container">
+                <div id="terminal-output2" class="terminal-output"></div>
+                <div class="input-area" id="input-area2">
+                    <span class="term-prompt" id="cli-prompt2">guest@portfolio:~</span>
+                    <input type="text" id="cmd-input2" class="cmd-input" autocomplete="off" spellcheck="false">
+                    <span class="cursor"></span>
+                </div>
             </div>
         </div>
     </div>
@@ -373,7 +495,7 @@
                 <li><strong>Core Functionality</strong> <span class="li-sub">Authored using Bash scripting to efficiently add, remove, and list pending tasks.</span></li>
                 <li><strong>Automation</strong> <span class="li-sub">Runs automatically on terminal login, parsing a data file for time-sensitive reminders.</span></li>
                 <li><strong>Skills Demonstrated</strong> <span class="li-sub">Strong proficiency in Bash, file I/O operations, and customizing Linux environments for improved productivity.</span></li>
-                <li><strong>Repository</strong> <span class="li-sub"><a href="https://github.com/engi-neil/bash-deadline-reminder" target="_blank">[ View Source ]</a></span></li>
+                <li><strong>Repository</strong> <span class="li-sub"><a href="#" onclick="window.open('https://github.com/engi-neil/bash-deadline-reminder','_blank')">[ View Source ]</a></span></li>
             </ul>
         </div>
     </div>
@@ -386,7 +508,7 @@
                 <li><strong>Architecture</strong> <span class="li-sub">Developed using Python, Streamlit, and LangChain to implement a Retrieval-Augmented Generation (RAG) pipeline.</span></li>
                 <li><strong>Data Processing</strong> <span class="li-sub">Processes uploaded scientific papers (PDFs), extracts and chunks text, and stores vector embeddings for semantic search.</span></li>
                 <li><strong>User Interface</strong> <span class="li-sub">Deployed a user-friendly web interface with Streamlit, enabling users to ask natural language questions for context-aware answers.</span></li>
-                <li><strong>Repository</strong> <span class="li-sub"><a href="https://github.com/immaNomad/ScientificResearch-Assistant" target="_blank">[ View Source ]</a></span></li>
+                <li><strong>Repository</strong> <span class="li-sub"><a href="#" onclick="window.open('https://github.com/immaNomad/ScientificResearch-Assistant','_blank')">[ View Source ]</a></span></li>
             </ul>
         </div>
     </div>
@@ -426,9 +548,9 @@
         <div class="doc-render">
             <h2>Contact Information</h2>
             <ul>
-                <li><strong>Email:</strong> <span class="li-sub"><a href="mailto:macaroneil16@gmail.com">macaroneil16@gmail.com</a></span></li>
+                <li><strong>Email:</strong> <span class="li-sub"><a href="#" onclick="window.open('https://mail.google.com/mail/?view=cm&fs=1&to=macaroneil16@gmail.com', '_blank')">macaroneil16@gmail.com</a></span></li>
                 <li><strong>Phone:</strong> <span class="li-sub">09616651370</span></li>
-                <li><strong>LinkedIn:</strong> <span class="li-sub"><a href="https://www.linkedin.com/in/neilemmanuelmacaro/" target="_blank">linkedin.com/in/neilemmanuelmacaro</a></span></li>
+                <li><strong>LinkedIn:</strong> <span class="li-sub"><a href="#" onclick="window.open('https://www.linkedin.com/in/neilemmanuelmacaro/','_blank')">linkedin.com/in/neilemmanuelmacaro</a></span></li>
                 <li><strong>Location:</strong> <span class="li-sub">Quezon City, Philippines</span></li>
             </ul>
             <br>
@@ -477,42 +599,107 @@
             }
         };
 
-        let currentDir = ""; 
-        let commandHistory = [];
-        let historyIndex = -1;
+        // --- Per-TTY State Objects ---
+        const ttys = [
+            { // TTY1
+                history: [],
+                historyIndex: -1,
+                aliases: {},
+                activeUser: "nmacaro",
+                container: "tty1-content",
+                out: "terminal-output1",
+                in: "cmd-input1",
+                prompt: "cli-prompt1",
+                isRoot: false,
+                awaitingPassword: false,
+                cmatrixInterval: null
+            },
+            { // TTY2 (CRT)
+                history: [],
+                historyIndex: -1,
+                aliases: {},
+                activeUser: "guest",
+                container: "tty2-content",
+                out: "terminal-output2",
+                in: "cmd-input2",
+                prompt: "cli-prompt2",
+                isRoot: false,
+                awaitingPassword: false,
+                cmatrixInterval: null
+            }
+        ];
 
-        const validCommands = ['ls', 'cd', 'cat', 'clear', 'neofetch', 'help', 'whoami', 'pwd', 'history', 'date', 'echo', 'sudo', 'ping', 'man', 'theme', 'cmatrix'];
+        let activeTtyIndex = 0;
+        let currentDir = ""; 
+        const SUDO_PASS = "admin";
+
+        let termOut, cmdInput, cliPrompt;
+        const col1 = document.getElementById('col1-content');
+        const col2 = document.getElementById('col2-content');
+        const col2Header = document.getElementById('col2-header');
+        const rangerStatusLeft = document.getElementById('ranger-status-left');
+
+        const validCommands = [
+            'ls', 'cd', 'cat', 'clear', 'neofetch', 'help', 'whoami', 'pwd', 
+            'history', 'date', 'echo', 'sudo', 'ping', 'man', 'theme', 
+            'cmatrix', 'grep', 'wc', 'tree', 'mkdir', 'rm', 'open', 'top', 
+            'htop', 'curl', 'alias', 'ssh', 'mail', 'uptime',
+            'about', 'education', 'leadership', 'skills', 'projects', 'certs', 'contact'
+        ];
 
         const themes = {
             hacker: { '--bg-base': '#000000', '--bg-pane': '#051005', '--fg-main': '#00ff00', '--fg-dim': '#007700', '--border': '#00ff00' },
             dracula: { '--bg-base': '#282a36', '--bg-pane': '#44475a', '--fg-main': '#f8f8f2', '--fg-dim': '#6272a4', '--border': '#bd93f9' },
             light: { '--bg-base': '#f0f0f0', '--bg-pane': '#ffffff', '--fg-main': '#333333', '--fg-dim': '#888888', '--border': '#cccccc' },
             default: { '--bg-base': '#000000', '--bg-pane': '#020202', '--fg-main': '#ffffff', '--fg-dim': '#888888', '--border': '#ffffff' },
-            pronhub: { '--bg-base': '#000000', '--bg-pane': '#0a0500', '--fg-main': '#ff9900', '--fg-dim': '#cc7700', '--border': '#ff9900' }
+            amber: { '--bg-base': '#000000', '--bg-pane': '#0a0500', '--fg-main': '#ff9900', '--fg-dim': '#cc7700', '--border': '#ff9900' }
         };
-
-        const col1 = document.getElementById('col1-content');
-        const col2 = document.getElementById('col2-content');
-        const col2Header = document.getElementById('col2-header');
-        const statusLeft = document.getElementById('status-left');
-        const termOut = document.getElementById('terminal-output');
-        const cmdInput = document.getElementById('cmd-input');
-        const cliPrompt = document.getElementById('cli-prompt');
 
         setInterval(() => {
             const d = new Date();
             document.getElementById('clock').textContent = d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
         }, 1000);
 
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
         function getPromptPath() {
             return currentDir === "" ? "~" : `~/${currentDir}`;
         }
 
+        function switchTty(index) {
+            const tty = ttys[index];
+            const oldTty = ttys[activeTtyIndex];
+
+            if (oldTty.cmatrixInterval) {
+                clearInterval(oldTty.cmatrixInterval);
+                document.getElementById('matrix-canvas').style.display = 'none';
+                oldTty.cmatrixInterval = null;
+            }
+
+            Array.from(document.querySelectorAll('.workspaces span')).forEach(s => s.classList.remove('active'));
+            document.getElementById(`ws${index+1}`).classList.add('active');
+
+            Array.from(document.querySelectorAll('.tty-content')).forEach(c => c.classList.remove('active'));
+            document.getElementById(tty.container).classList.add('active');
+
+            activeTtyIndex = index;
+            termOut = document.getElementById(tty.out);
+            cmdInput = document.getElementById(tty.in);
+            cliPrompt = document.getElementById(tty.prompt);
+
+            updatePromptView();
+            cmdInput.focus();
+        }
+
         function printToTerminal(content, isCmd = false, isHtml = false) {
+            const tty = ttys[activeTtyIndex];
             const div = document.createElement('div');
             div.className = 'term-line';
+            
             if (isCmd) {
-                div.innerHTML = `<span class="term-prompt">nmacaro@portfolio:${getPromptPath()}</span> <span class="term-cmd">${content}</span>`;
+                const promptText = `${tty.isRoot ? 'root' : tty.activeUser}@portfolio:${getPromptPath()}`;
+                const promptClass = tty.isRoot ? 'term-prompt root-prompt' : 'term-prompt';
+                div.innerHTML = `<span class="${promptClass}">${promptText}</span> <span class="term-cmd">${content}</span>`;
             } else if (isHtml) {
                 div.innerHTML = content;
             } else {
@@ -522,42 +709,62 @@
             termOut.scrollTop = termOut.scrollHeight;
         }
 
-        function runNeofetch() {
-            const html = `
-            <div class="neofetch-wrapper">
-                <div class="ascii-art">
- ███╗   ██╗███╗   ███╗
- ████╗  ██║████╗ ████║
- ██╔██╗ ██║██╔████╔██║
- ██║╚██╗██║██║╚██╔╝██║
- ██║ ╚████║██║ ╚═╝ ██║
- ╚═╝  ╚═══╝╚═╝     ╚═╝
+        async function typeText(element, text, speed = 20) {
+            for (let i = 0; i < text.length; i++) {
+                element.innerHTML += text.charAt(i);
+                const tty2Out = document.getElementById('terminal-output2');
+                tty2Out.scrollTop = tty2Out.scrollHeight;
+                await sleep(speed);
+            }
+        }
 
-                </div>
-                <div class="sys-info">
-                    <div class="sys-header">nmacaro@portfolio</div>
-                    <div style="color:var(--fg-dim);">-------------------</div>
-                    <div class="sys-line"><div class="sys-key">OS</div><div class="sys-val">Mapúa OS x67_69</div></div>
-                    <div class="sys-line"><div class="sys-key">Host</div><div class="sys-val">Neil Emmanuel R. Macaro</div></div>
-                    <div class="sys-line"><div class="sys-key">Kernel</div><div class="sys-val">Cybersecurity 6.94.20</div></div>
-                    <div class="sys-line"><div class="sys-key">Uptime</div><div class="sys-val">2022 - Present</div></div>
-                    <div class="sys-line"><div class="sys-key">Packages</div><div class="sys-val">10 (Cisco), 5 (Coursera)</div></div>
-                    <div class="sys-line"><div class="sys-key">Shell</div><div class="sys-val">Bash 6.9.67</div></div>
-                    <div class="sys-line"><div class="sys-key">WM</div><div class="sys-val">Hyprland (Wayland)</div></div>
-                    <div class="sys-line"><div class="sys-key">Location</div><div class="sys-val">Quezon City, Philippines</div></div>
+        async function runRetroStartup() {
+            const tty2Out = document.getElementById('terminal-output2');
+            const inputArea2 = document.getElementById('input-area2');
+            inputArea2.style.display = 'none'; 
 
-                    <div class="color-blocks">
-                        <div class="cb" style="background:#111"></div><div class="cb" style="background:#333"></div>
-                        <div class="cb" style="background:#555"></div><div class="cb" style="background:#777"></div>
-                        <div class="cb" style="background:#999"></div><div class="cb" style="background:#bbb"></div>
-                        <div class="cb" style="background:#ddd"></div><div class="cb" style="background:#fff"></div>
-                    </div>
-                </div>
-            </div>`;
-            printToTerminal(html, false, true);
+            const asciiLogo = `\n _______  ___________.___.____     \n \\      \\ \\_   _____/|   |    |    \n /   |   \\ |    __)_ |   |    |    \n/    |    \\|        \\|   |    |___ \n\\____|__  /_______  /|___|_______ \\\n        \\/        \\/             \\/\n`;
+
+            const sequenceLines = [
+                { text: `<pre style="color:var(--fg-main); text-shadow: 0 0 6px var(--fg-main);">${asciiLogo}</pre>`, type: 'instant' },
+                { text: '<div style="font-weight:bold; font-size:1.2em; text-shadow: 0 0 8px var(--fg-main); margin-bottom: 16px;">PORTFOLIO SYSTEM v6.7</div>', type: 'instant' },
+                { text: 'Initializing Macaro_Portfolio_Kernel v2026...', type: 'typewriter', delay: 800 },
+                { text: 'Loading modules: [Bash] [Python] [Network Sec] [GNU/Linux]...', type: 'typewriter', delay: 600 },
+                { text: 'Checking peripherals: Virtual Environment detected...', type: 'typewriter', delay: 700 },
+                { text: 'Mounting file system: /home/nmacaro...', type: 'typewriter', delay: 500 },
+                { text: '<br><div class="dash-separator">---------------------------------------------------------</div><br>', type: 'instant' },
+                { text: 'User: Neil Emmanuel R. Macaro', type: 'typewriter', delay: 200 },
+                { text: 'Role: Computer Engineering Undergraduate', type: 'typewriter', delay: 200 },
+                { text: 'Focus: Cybersecurity & Network Infrastructure', type: 'typewriter', delay: 200 },
+                { text: 'Status: ACTIVE [Ready to collaborate]', type: 'typewriter', delay: 500 },
+                { text: '<br><div style="font-weight:bold; font-style: italic;">>> Type \'about\', \'education\', \'skills\', \'projects\', \'certs\', or \'contact\' to explore sections. <<</div>', type: 'instant' },
+                { text: '<div>>> Type \'help\' to see advanced shell commands. <<</div>', type: 'instant' },
+                { text: '<br><div class="dash-separator">---------------------------------------------------------</div><br>', type: 'instant' }
+            ];
+
+            for (const line of sequenceLines) {
+                const lineDiv = document.createElement('div');
+                lineDiv.className = 'term-line';
+                tty2Out.appendChild(lineDiv);
+
+                if (line.type === 'instant') {
+                    lineDiv.innerHTML = line.text;
+                    await sleep(150); 
+                } else if (line.type === 'typewriter') {
+                    await typeText(lineDiv, line.text);
+                    await sleep(line.delay || 500); 
+                }
+                tty2Out.scrollTop = tty2Out.scrollHeight;
+            }
+
+            inputArea2.style.display = 'flex';
+            if (activeTtyIndex === 1) {
+                document.getElementById('cmd-input2').focus();
+            }
         }
 
         function triggerCMatrix() {
+            const tty = ttys[activeTtyIndex];
             const canvas = document.getElementById('matrix-canvas');
             canvas.style.display = 'block';
             canvas.width = window.innerWidth;
@@ -571,7 +778,7 @@
             const draw = () => {
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = '#0F0';
+                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--fg-main') || '#0F0';
                 ctx.font = fontSize + 'px monospace';
                 for (let i = 0; i < drops.length; i++) {
                     const text = chars[Math.floor(Math.random() * chars.length)];
@@ -581,10 +788,11 @@
                 }
             };
             
-            const interval = setInterval(draw, 33);
+            tty.cmatrixInterval = setInterval(draw, 33);
             
             const stopMatrix = () => {
-                clearInterval(interval);
+                clearInterval(tty.cmatrixInterval);
+                tty.cmatrixInterval = null;
                 canvas.style.display = 'none';
                 window.removeEventListener('keydown', stopMatrix);
                 canvas.removeEventListener('click', stopMatrix);
@@ -594,73 +802,149 @@
             canvas.addEventListener('click', stopMatrix);
         }
 
+        function buildTree(dirObj, indent = "") {
+            let res = "";
+            const files = Object.keys(dirObj.files || {});
+            files.forEach((f, i) => {
+                const isLast = i === files.length - 1;
+                res += `${indent}${isLast ? '└── ' : '├── '}${f}\n`;
+            });
+            return res;
+        }
+
         function handleCommand(cmdStr, executedFromGUI = false) {
-            cmdStr = cmdStr.trim();
-            if (!cmdStr) return;
+            const tty = ttys[activeTtyIndex];
+
+            if (tty.awaitingPassword) {
+                const div = document.createElement('div');
+                div.className = 'term-line';
+                div.innerHTML = `<span class="term-prompt">[sudo] password for ${tty.activeUser}:</span> <span class="term-cmd"></span>`;
+                termOut.appendChild(div);
+                
+                if (cmdStr === SUDO_PASS) {
+                    tty.isRoot = true;
+                    tty.awaitingPassword = false;
+                    cmdInput.type = "text";
+                    
+                    let cmdToRun = tty.pendingCmd;
+                    tty.pendingCmd = "";
+                    
+                    if (cmdToRun.startsWith('sudo ')) {
+                        cmdToRun = cmdToRun.substring(5).trim();
+                    } else if (cmdToRun === 'sudo') {
+                        cmdToRun = '';
+                    }
+
+                    if (cmdToRun) handleCommand(cmdToRun, true); 
+                } else {
+                    printToTerminal("Sorry, try again.");
+                    tty.awaitingPassword = false;
+                    cmdInput.type = "text";
+                    tty.pendingCmd = "";
+                }
+                updatePromptView();
+                if(!executedFromGUI) { cmdInput.value = ''; setTimeout(() => cmdInput.focus(), 10); }
+                return;
+            }
+
+            const originalCmdStr = cmdStr.trim();
+            if (!originalCmdStr) return;
 
             if (!executedFromGUI) {
-                commandHistory.push(cmdStr);
+                tty.history.push(originalCmdStr);
             }
 
-            printToTerminal(cmdStr, true);
+            printToTerminal(originalCmdStr, true);
 
-            const args = cmdStr.split(' ').filter(Boolean);
-            const cmd = args[0].toLowerCase();
+            if (originalCmdStr.startsWith('sudo ') || originalCmdStr === 'sudo') {
+                if (!tty.isRoot) {
+                    tty.awaitingPassword = true;
+                    tty.pendingCmd = originalCmdStr;
+                    cmdInput.type = "password";
+                    updatePromptView();
+                    if(!executedFromGUI) { cmdInput.value = ''; setTimeout(() => cmdInput.focus(), 10); }
+                    return;
+                } else {
+                    cmdStr = originalCmdStr.substring(5).trim();
+                    if (!cmdStr) return;
+                }
+            }
+
+            let parseStr = cmdStr;
+            let redirectTarget = null;
+            let redirectMode = null;
+            let pipeCmd = null;
+
+            if (parseStr.includes('>>')) {
+                let parts = parseStr.split('>>');
+                parseStr = parts[0].trim();
+                redirectTarget = parts[1].trim();
+                redirectMode = 'append';
+            } else if (parseStr.includes('>')) {
+                let parts = parseStr.split('>');
+                parseStr = parts[0].trim();
+                redirectTarget = parts[1].trim();
+                redirectMode = 'overwrite';
+            } else if (parseStr.includes('|')) {
+                let parts = parseStr.split('|');
+                parseStr = parts[0].trim();
+                pipeCmd = parts[1].trim();
+            }
+
+            if (redirectTarget === "" || pipeCmd === "") {
+                printToTerminal("bash: syntax error near unexpected token `newline'");
+                if (!executedFromGUI) { cmdInput.value = ''; setTimeout(() => cmdInput.focus(), 10); }
+                return;
+            }
+
+            const args = parseStr.split(' ').filter(Boolean);
+            
+            let cmd = args[0].toLowerCase();
+            if (tty.aliases[cmd]) {
+                cmd = tty.aliases[cmd]; 
+            }
+
             const target = args[1];
+            let buffer = [];
+            let isHtmlOut = false;
 
-            if (cmd === 'clear') {
-                termOut.innerHTML = '';
-            } 
-            else if (cmd === 'ls') {
-                if (currentDir === "") {
-                    printToTerminal(Object.keys(vfs).map(k => `[DIR]  ${k}`).join('\n'));
+            const out = (content, isHtml = false) => {
+                if (content === undefined || content === null) return;
+                buffer.push(content);
+                if (isHtml) isHtmlOut = true;
+            };
+
+            // Non-buffered Commands
+            if (['clear', 'theme', 'cmatrix'].includes(cmd)) {
+                if (pipeCmd || redirectTarget) {
+                    printToTerminal(`bash: ${cmd}: piping/redirection not supported for DOM-manipulating commands`);
                 } else {
-                    printToTerminal(Object.keys(vfs[currentDir].files).map(k => `[FILE] ${k}`).join('\n'));
+                     if (cmd === 'clear') termOut.innerHTML = '';
+                     else if (cmd === 'theme') {
+                        if (activeTtyIndex !== 0) {
+                            out("Themes are only compatible with Workspace 1:SYS.");
+                        } else if (!target || !themes[target]) {
+                            out(`Usage: theme <name>\nAvailable themes: ${Object.keys(themes).join(', ')}`);
+                        } else {
+                            Object.keys(themes[target]).forEach(k => document.documentElement.style.setProperty(k, themes[target][k]));
+                            out(`Theme updated to '${target}'`);
+                        }
+                     }
+                     else if (cmd === 'cmatrix') {
+                        out("Initiating matrix... (Press any key to exit)");
+                        setTimeout(triggerCMatrix, 500);
+                     }
+                     if (buffer.length > 0) printToTerminal(buffer.join('\n'));
                 }
+                if(!executedFromGUI) { cmdInput.value = ''; setTimeout(() => cmdInput.focus(), 10); }
+                return;
             }
-            else if (cmd === 'cd') {
-                if (!target || target === '~' || target === '..') {
-                    currentDir = "";
-                } else if (target === '.') {
-                    // cd . does nothing
-                } else if (vfs[target] && currentDir === "") {
-                    currentDir = target;
-                    printToTerminal(Object.keys(vfs[target].files).map(k => `[FILE] ${k}`).join('\n'), false);
-                } else {
-                    printToTerminal(`cd: ${target}: No such directory`);
-                }
-                updateGUI();
-            }
-            else if (cmd === 'pwd') {
-                const basePath = "/home/nmacaro/portfolio";
-                printToTerminal(currentDir === "" ? basePath : `${basePath}/${currentDir}`);
-            }
-            else if (cmd === 'whoami') {
-                const whoamiText = `
-nmacaro (Neil Emmanuel R. Macaro)
----------------------------------
-Role:       Computer Engineering Undergraduate @ Mapúa University
-Focus:      Cybersecurity & Network Infrastructure
-Leadership: ICpEP SE. Mapua Chapter President (2025 - Present)
-                `.trim();
-                printToTerminal(whoamiText);
-            }
-            else if (cmd === 'date') {
-                printToTerminal(new Date().toString());
-            }
-            else if (cmd === 'echo') {
-                printToTerminal(args.slice(1).join(' '));
-            }
-            else if (cmd === 'history') {
-                const histList = commandHistory.map((c, i) => `  ${(i+1).toString().padStart(3, ' ')}  ${c}`).join('\n');
-                printToTerminal(histList);
-            }
-            else if (cmd === 'sudo') {
-                printToTerminal(`<span style="color:#ff5555; font-weight:bold;">nmacaro is not in the sudoers file. This incident will be reported.</span>`, false, true);
-            }
-            else if (cmd === 'ping') {
+
+            if (cmd === 'ping') {
                 if (!target) {
                     printToTerminal("ping: missing host operand");
+                } else if (pipeCmd || redirectTarget) {
+                    printToTerminal("bash: ping: async piping/redirection not supported in this mock");
                 } else {
                     let pings = 0;
                     printToTerminal(`PING ${target} (${target}): 56 data bytes`);
@@ -673,78 +957,273 @@ Leadership: ICpEP SE. Mapua Chapter President (2025 - Present)
                         }
                     }, 1000);
                 }
+                if(!executedFromGUI) { cmdInput.value = ''; setTimeout(() => cmdInput.focus(), 10); }
+                return;
             }
-            else if (cmd === 'theme') {
-                if (!target || !themes[target]) {
-                    printToTerminal(`Usage: theme <name>\nAvailable themes: ${Object.keys(themes).join(', ')}`);
+
+            // --- Buffered Commands ---
+            
+            // Core Portfolio Macro-Commands
+            if (cmd === 'about') {
+                out(document.getElementById('tpl-about-profile').innerHTML, true);
+            }
+            else if (cmd === 'education') {
+                out(document.getElementById('tpl-about-education').innerHTML, true);
+            }
+            else if (cmd === 'leadership') {
+                out(document.getElementById('tpl-about-leadership').innerHTML, true);
+            }
+            else if (cmd === 'skills') {
+                out(document.getElementById('tpl-skills-security').innerHTML + 
+                    document.getElementById('tpl-skills-networking').innerHTML + 
+                    document.getElementById('tpl-skills-systems').innerHTML, true);
+            }
+            else if (cmd === 'projects') {
+                out(document.getElementById('tpl-projects-bash').innerHTML + 
+                    document.getElementById('tpl-projects-rag').innerHTML, true);
+            }
+            else if (cmd === 'certs') {
+                out(document.getElementById('tpl-certs-cisco').innerHTML + 
+                    document.getElementById('tpl-certs-coursera').innerHTML, true);
+            }
+            else if (cmd === 'contact') {
+                out(document.getElementById('tpl-contact-details').innerHTML, true);
+            }
+
+            // Standard Commands
+            else if (cmd === 'ls') {
+                if (currentDir === "") {
+                    out(Object.keys(vfs).map(k => `[DIR]  ${k}`).join('\n'));
                 } else {
-                    Object.keys(themes[target]).forEach(k => {
-                        document.documentElement.style.setProperty(k, themes[target][k]);
-                    });
-                    printToTerminal(`Theme updated to '${target}'`);
+                    out(Object.keys(vfs[currentDir].files).map(k => `[FILE] ${k}`).join('\n'));
                 }
             }
-            else if (cmd === 'cmatrix') {
-                printToTerminal("Initiating matrix... (Press any key to exit)");
-                setTimeout(triggerCMatrix, 500);
+            else if (cmd === 'cd') {
+                if (!target || target === '~' || target === '..') currentDir = "";
+                else if (target === '.') {} // Do nothing
+                else if (vfs[target] && currentDir === "") {
+                    currentDir = target;
+                    out(Object.keys(vfs[target].files).map(k => `[FILE] ${k}`).join('\n'));
+                } else {
+                    out(`cd: ${target}: No such directory`);
+                }
+                updatePromptView();
             }
+            else if (cmd === 'pwd') {
+                const basePath = "/home/nmacaro/portfolio";
+                out(currentDir === "" ? basePath : `${basePath}/${currentDir}`);
+            }
+            else if (cmd === 'whoami') {
+                if (tty.isRoot) {
+                    out(`root (Superuser)\n---------------------------------\nWarning: You have complete access to the system files.`);
+                } else {
+                    out(`${tty.activeUser} (Neil Emmanuel R. Macaro)\n---------------------------------\nRole:       Computer Engineering Undergraduate @ Mapúa University\nFocus:      Cybersecurity & Network Infrastructure\nLeadership: ICpEP SE. Mapua Chapter President (2025 - Present)`);
+                }
+            }
+            else if (cmd === 'date') out(new Date().toString());
+            else if (cmd === 'echo') out(args.slice(1).join(' ').replace(/['"]/g, ''));
+            else if (cmd === 'history') out(tty.history.map((c, i) => `  ${(i+1).toString().padStart(3, ' ')}  ${c}`).join('\n'));
             else if (cmd === 'man') {
-                if (target === 'neil' || target === 'nmacaro') {
-                    printToTerminal("NEIL(1)                   User Commands                   NEIL(1)\n\nNAME\n       neil - Computer Engineering Undergraduate\n\nSYNOPSIS\n       neil [OPTIONS]... [TASKS]...\n\nDESCRIPTION\n       Executes tasks related to cybersecurity, network infrastructure, and bash scripting with extreme efficiency.");
-                } else if (target === 'portfolio') {
-                    printToTerminal("PORTFOLIO(1)              User Commands              PORTFOLIO(1)\n\nNAME\n       portfolio - Web-based terminal resume\n\nDESCRIPTION\n       A functional HTML/JS terminal interface built to resemble a Linux window manager. Try using basic bash commands to navigate.");
+                if (target === 'neil' || target === 'nmacaro') out("NEIL(1)                   User Commands                   NEIL(1)\n\nNAME\n       neil - Computer Engineering Undergraduate\n\nSYNOPSIS\n       neil [OPTIONS]... [TASKS]...\n\nDESCRIPTION\n       Executes tasks related to cybersecurity, network infrastructure, and bash scripting with extreme efficiency.");
+                else if (target === 'portfolio') out("PORTFOLIO(1)              User Commands              PORTFOLIO(1)\n\nNAME\n       portfolio - Web-based terminal resume\n\nDESCRIPTION\n       A functional HTML/JS terminal interface built to resemble a Linux window manager. Try using basic bash commands to navigate.");
+                else out(`No manual entry for ${target ? target : 'nothing'}`);
+            }
+            else if (cmd === 'open') {
+                if (target === 'linkedin') { window.open("https://www.linkedin.com/in/neilemmanuelmacaro/", "_blank"); out("Opening LinkedIn in new tab..."); }
+                else if (target === 'github') { window.open("https://github.com/engi-neil", "_blank"); out("Opening GitHub in new tab..."); }
+                else { out(`open: ${target ? target : 'nothing'}: No application knows how to open this URL/file.`); }
+            }
+            else if (cmd === 'mail') {
+                window.open("https://mail.google.com/mail/?view=cm&fs=1&to=macaroneil16@gmail.com", "_blank");
+                out("Opening Gmail in a new tab...");
+            }
+            else if (cmd === 'ssh') {
+                if (target === 'secret-server') out("Connecting to secret-server...\nAccess Denied (publickey). Registration required.");
+                else out(`ssh: Could not resolve hostname ${target ? target : ''}: Name or service not known`);
+            }
+            else if (cmd === 'curl') {
+                if (target === 'weather') out(`Weather report: Quezon City, Philippines\n   \\  /       Partly cloudy\n _ /"".\\_     +32°C\n   \\_( )_\\    Wind: 10 km/h SW\n\nData provided by WTTR in mock mode.`);
+                else if (target === 'github') out(`Fetching recent repositories for nmacaro...\n[\n  {"name": "bash-deadline-reminder", "language": "Shell"},\n  {"name": "ScientificResearch-Assistant", "language": "Python"}\n]`);
+                else out(`curl: (6) Could not resolve host: ${target ? target : ''}`);
+            }
+            else if (cmd === 'alias') {
+                if (!target) {
+                    out(Object.entries(tty.aliases).map(([k,v]) => `alias ${k}='${v}'`).join('\n') || "No aliases currently defined.");
+                } else if (target.includes('=')) {
+                    const parts = target.split('=');
+                    tty.aliases[parts[0]] = parts.slice(1).join('=');
                 } else {
-                    printToTerminal(`No manual entry for ${target ? target : 'nothing'}`);
+                    out(`alias: ${target}: not found`);
                 }
             }
-            else if (cmd === 'help') {
-                const helpText = `
-Available Commands:
-  cat <file>   Concatenate and print file contents
-  cd <dir>     Change working directory
-  clear        Clear the terminal screen
-  cmatrix      Show terminal matrix effect
-  date         Print system date and time
-  echo <text>  Print text to terminal
-  help         Display this help message
-  history      Show command history
-  ls           List directory contents
-  man <cmd>    Read manual pages (try 'man neil')
-  neofetch     Display system and user information
-  ping <host>  Send ICMP ECHO_REQUEST to network hosts
-  pwd          Print name of current/working directory
-  sudo <cmd>   Execute a command as superuser
-  theme <name> Change CSS theme
-  whoami       Print effective user ID
-                `.trim();
-                printToTerminal(helpText);
+            else if (cmd === 'top' || cmd === 'htop') {
+                out(`top - ${new Date().toLocaleTimeString()} up 1:23,  1 user,  load average: 0.04, 0.03, 0.00\nTasks:   4 total,   1 running,   3 sleeping,   0 stopped,   0 zombie\n%Cpu(s):  3.1 us,  1.2 sy,  0.0 ni, 95.7 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st\nKiB Mem :  1638400 total,   819200 free,   409600 used,   409600 buff/cache\n\n  PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND\n    1 nmacaro   20   0  162304  84300  28300 S   1.0  5.1   0:00.01 bash-scripting\n   42 nmacaro   20   0  538300 120400  45200 R   2.5  7.3   0:02.14 python3-ai\n  101 nmacaro   20   0   12300   3200   1100 S   0.0  0.2   0:00.00 network-sec\n  999 root      20   0       0      0      0 S   0.0  0.0   0:00.00 sys-kernel`);
             }
-            else if (cmd === 'cat') {
-                if (!target) {
-                    printToTerminal("cat: missing file operand");
+            else if (cmd === 'tree') {
+                if (currentDir === "") {
+                    let res = ".\n";
+                    const dirs = Object.keys(vfs);
+                    dirs.forEach((d, i) => {
+                        const isLastDir = i === dirs.length - 1;
+                        res += `${isLastDir ? '└── ' : '├── '}${d}\n`;
+                        res += buildTree(vfs[d], isLastDir ? "    " : "│   ");
+                    });
+                    out(res);
                 } else {
-                    if (currentDir !== "") {
-                        const templateId = vfs[currentDir].files[target];
-                        if (templateId) {
-                            const html = document.getElementById(`tpl-${templateId}`).innerHTML;
-                            printToTerminal(html, false, true);
-                        } else {
-                            printToTerminal(`cat: ${target}: No such file`);
-                        }
+                    out(`.\n` + buildTree(vfs[currentDir]));
+                }
+            }
+            else if (cmd === 'mkdir') {
+                if (!tty.isRoot) out(`mkdir: cannot create directory '${target}': Permission denied (Use 'sudo')`);
+                else if (!target) out(`mkdir: missing operand`);
+                else if (currentDir !== "") out(`mkdir: cannot create directories inside subdirectories in this mock system. Try running it in root (~).`);
+                else if (vfs[target]) out(`mkdir: cannot create directory '${target}': File exists`);
+                else { vfs[target] = { type: 'dir', files: {} }; out(`mkdir: Directory '${target}' created.`); updatePromptView(); }
+            }
+            else if (cmd === 'rm') {
+                if (!tty.isRoot) out(`rm: cannot remove '${target}': Permission denied (Use 'sudo')`);
+                else if (!target) out(`rm: missing operand`);
+                else {
+                    if (currentDir === "") {
+                        if (vfs[target]) { delete vfs[target]; out(`Directory '${target}' removed.`); updatePromptView(); }
+                        else out(`rm: cannot remove '${target}': No such file or directory`);
                     } else {
-                        if (vfs[target]) {
-                             printToTerminal(`cat: ${target}: Is a directory (Use 'cd ${target}' first)`);
-                        } else {
-                            printToTerminal(`cat: ${target}: No such file`);
-                        }
+                        if (vfs[currentDir].files[target]) { delete vfs[currentDir].files[target]; updatePromptView(); }
+                        else out(`rm: cannot remove '${target}': No such file or directory`);
                     }
                 }
             }
+            else if (cmd === 'uptime') {
+                const uptimeS = Math.floor((Date.now() - window.portfolioStartTime) / 1000);
+                out(`up ${Math.floor(uptimeS / 60)} minutes, ${uptimeS % 60} seconds`);
+            }
+            else if (cmd === 'help') {
+                out(`Portfolio Sections:\n  about        education        leadership\n  skills       projects         certs\n  contact\n\nShell Commands:\n  alias        cat          cd           clear\n  cmatrix      curl         date         echo\n  help         history      ls           mail\n  man          mkdir        neofetch     open\n  ping         pwd          rm           ssh\n  sudo         theme        top/htop     tree\n  uptime       whoami\n\nModifiers:\n  > or >>      Redirect output to a file\n  |            Pipe output (grep, wc, cowsay)`);
+            }
+            else if (cmd === 'cowsay') {
+                const text = args.slice(1).join(' ') || "moo";
+                const border = '-'.repeat(text.length + 2);
+                out(`\n ${border}\n< ${text} >\n ${border}\n        \\   ^__^\n         \\  (oo)\\_______\n            (__)\\       )\\/\\\n                ||----w |\n                ||     ||`);
+            }
             else if (cmd === 'neofetch') {
-                runNeofetch();
+                const html = `
+                <div class="neofetch-wrapper">
+                    <div class="ascii-art">
+ ███╗   ██╗███╗   ███╗
+ ████╗  ██║████╗ ████║
+ ██╔██╗ ██║██╔████╔██║
+ ██║╚██╗██║██║╚██╔╝██║
+ ██║ ╚████║██║ ╚═╝ ██║
+ ╚═╝  ╚═══╝╚═╝     ╚═╝
+                    </div>
+                    <div class="sys-info">
+                        <div class="sys-header">${tty.isRoot ? 'root' : tty.activeUser}@portfolio</div>
+                        <div style="color:var(--fg-dim);">-------------------</div>
+                        <div class="sys-line"><div class="sys-key">OS</div><div class="sys-val">Mapúa OS x86_64</div></div>
+                        <div class="sys-line"><div class="sys-key">Host</div><div class="sys-val">Neil Emmanuel R. Macaro</div></div>
+                        <div class="sys-line"><div class="sys-key">Kernel</div><div class="sys-val">Cybersecurity 5.19.11</div></div>
+                        <div class="sys-line"><div class="sys-key">Uptime</div><div class="sys-val">2022 - Present</div></div>
+                        <div class="sys-line"><div class="sys-key">Packages</div><div class="sys-val">10 (Cisco), 5 (Coursera)</div></div>
+                        <div class="sys-line"><div class="sys-key">Shell</div><div class="sys-val">Bash 5.1.16</div></div>
+                        <div class="sys-line"><div class="sys-key">WM</div><div class="sys-val">Hyprland (Wayland)</div></div>
+                        <div class="sys-line"><div class="sys-key">Location</div><div class="sys-val">Quezon City, Philippines</div></div>
+                        <div class="color-blocks">
+                            <div class="cb" style="background:#111"></div><div class="cb" style="background:#333"></div>
+                            <div class="cb" style="background:#555"></div><div class="cb" style="background:#777"></div>
+                            <div class="cb" style="background:#999"></div><div class="cb" style="background:#bbb"></div>
+                            <div class="cb" style="background:#ddd"></div><div class="cb" style="background:#fff"></div>
+                        </div>
+                    </div>
+                </div>`;
+                out(html, true);
+            }
+            else if (cmd === 'cat') {
+                if (!target) out("cat: missing file operand");
+                else {
+                    if (currentDir !== "") {
+                        const templateId = vfs[currentDir].files[target];
+                        if (templateId) {
+                            if (templateId.startsWith('raw:')) out(templateId.substring(4), false);
+                            else out(document.getElementById(`tpl-${templateId}`).innerHTML, true);
+                        } else out(`cat: ${target}: No such file`);
+                    } else {
+                        if (vfs[target]) out(`cat: ${target}: Is a directory (Use 'cd ${target}' first)`);
+                        else out(`cat: ${target}: No such file`);
+                    }
+                }
             }
             else {
-                printToTerminal(`bash: ${cmd}: command not found`);
+                out(`bash: ${cmd}: command not found`);
+            }
+
+            // --- Resolving Output (Pipes and Redirects) ---
+            if (buffer.length > 0) {
+                let finalOutput = buffer.join('\n');
+                
+                if (pipeCmd) {
+                    const pArgs = pipeCmd.split(' ').filter(Boolean);
+                    const pCmdStr = pArgs[0].toLowerCase();
+                    
+                    let plainText = finalOutput;
+                    if (isHtmlOut) {
+                        let temp = document.createElement('div');
+                        temp.innerHTML = finalOutput;
+                        plainText = temp.innerText;
+                        isHtmlOut = false; 
+                    }
+
+                    if (pCmdStr === 'grep' && pArgs[1]) {
+                        const term = pArgs[1].replace(/['"]/g, '');
+                        finalOutput = plainText.split('\n').filter(l => l.includes(term)).join('\n');
+                    } else if (pCmdStr === 'wc') {
+                        let lines = plainText.split('\n').length;
+                        let words = plainText.split(/\s+/).filter(Boolean).length;
+                        let chars = plainText.length;
+                        finalOutput = ` ${lines}  ${words}  ${chars}`;
+                    } else if (pCmdStr === 'cowsay') {
+                        const border = '-'.repeat(plainText.length + 2);
+                        finalOutput = `\n ${border}\n< ${plainText} >\n ${border}\n        \\   ^__^\n         \\  (oo)\\_______\n            (__)\\       )\\/\\\n                ||----w |\n                ||     ||`;
+                    } else {
+                        finalOutput = `bash: ${pCmdStr}: command not found or not supported for piping`;
+                    }
+                }
+                
+                if (redirectTarget) {
+                    if (currentDir === "") {
+                        printToTerminal(`bash: ${redirectTarget}: Cannot create files directly in root (/). Please cd into a folder first.`);
+                    } else {
+                        let plainText = finalOutput;
+                        if (isHtmlOut) {
+                            let temp = document.createElement('div');
+                            temp.innerHTML = finalOutput;
+                            plainText = temp.innerText;
+                        }
+                        
+                        let fileRef = vfs[currentDir].files[redirectTarget];
+                        
+                        if (fileRef && !fileRef.startsWith('raw:') && !tty.isRoot) {
+                            printToTerminal(`bash: ${redirectTarget}: Permission denied (Read-only system file. Use 'sudo' to override)`);
+                        } else {
+                            if (redirectMode === 'overwrite' || !fileRef) {
+                                vfs[currentDir].files[redirectTarget] = 'raw:' + plainText;
+                            } else {
+                                if (fileRef && !fileRef.startsWith('raw:')) {
+                                     let origHtml = document.getElementById(`tpl-${fileRef}`).innerHTML;
+                                     let temp = document.createElement('div');
+                                     temp.innerHTML = origHtml;
+                                     vfs[currentDir].files[redirectTarget] = 'raw:' + temp.innerText.trim() + '\n' + plainText;
+                                } else {
+                                     vfs[currentDir].files[redirectTarget] += '\n' + plainText;
+                                }
+                            }
+                            updatePromptView();
+                        }
+                    }
+                } else {
+                    if (finalOutput.trim() || isHtmlOut) {
+                         printToTerminal(finalOutput, false, isHtmlOut);
+                    }
+                }
             }
 
             if(!executedFromGUI) {
@@ -753,98 +1232,154 @@ Available Commands:
             }
         }
 
-        function updateGUI() {
-            cliPrompt.textContent = `nmacaro@portfolio:${getPromptPath()}`;
-            statusLeft.textContent = `NOR | ~/portfolio${currentDir ? '/' + currentDir : ''}`;
+        function updatePromptView() {
+            const tty = ttys[activeTtyIndex];
 
-            col1.innerHTML = '';
-            Object.keys(vfs).forEach(dirName => {
-                const div = document.createElement('div');
-                div.className = `r-item dir ${currentDir === dirName ? 'active' : ''}`;
-                div.innerHTML = `<span>${dirName}</span>`;
-                div.onclick = () => {
-                    cmdInput.value = `cd ${dirName}`;
-                    handleCommand(`cd ${dirName}`, true);
-                };
-                col1.appendChild(div);
-            });
-
-            col2.innerHTML = '';
-            if (currentDir === "") {
-                col2Header.textContent = "contents";
+            if (tty.awaitingPassword) {
+                cliPrompt.textContent = `[sudo] password for ${tty.activeUser}: `;
+                cliPrompt.className = "term-prompt";
             } else {
-                col2Header.textContent = `~/${currentDir}`;
-                Object.keys(vfs[currentDir].files).forEach(fileName => {
-                    const fileDiv = document.createElement('div');
-                    fileDiv.className = 'r-item file';
-                    fileDiv.innerHTML = `<span>${fileName}</span>`;
-                    fileDiv.onclick = () => {
-                        Array.from(col2.children).forEach(c => c.classList.remove('active'));
-                        fileDiv.classList.add('active');
+                cliPrompt.textContent = `${tty.isRoot ? 'root' : tty.activeUser}@portfolio:${getPromptPath()}`;
+                cliPrompt.className = tty.isRoot ? "term-prompt root-prompt" : "term-prompt";
+            }
 
-                        cmdInput.value = `cat ${fileName}`;
-                        handleCommand(`cat ${fileName}`, true);
+            if (activeTtyIndex === 0) {
+                rangerStatusLeft.textContent = `${tty.isRoot ? 'ROOT' : 'NOR'} | ~/portfolio${currentDir ? '/' + currentDir : ''}`;
+
+                col1.innerHTML = '';
+                Object.keys(vfs).forEach(dirName => {
+                    const div = document.createElement('div');
+                    div.className = `r-item dir ${currentDir === dirName ? 'active' : ''}`;
+                    div.innerHTML = `<span>${dirName}</span>`;
+                    div.onclick = () => {
+                        handleCommand(`cd ${dirName}`, true);
                     };
-                    col2.appendChild(fileDiv);
+                    col1.appendChild(div);
                 });
+
+                col2.innerHTML = '';
+                if (currentDir === "") {
+                    col2Header.textContent = "contents";
+                } else {
+                    col2Header.textContent = `~/${currentDir}`;
+                    Object.keys(vfs[currentDir].files).forEach(fileName => {
+                        const fileDiv = document.createElement('div');
+                        fileDiv.className = 'r-item file';
+                        fileDiv.innerHTML = `<span>${fileName}</span>`;
+                        fileDiv.onclick = () => {
+                            Array.from(col2.children).forEach(c => c.classList.remove('active'));
+                            fileDiv.classList.add('active');
+                            handleCommand(`cat ${fileName}`, true);
+                        };
+                        col2.appendChild(fileDiv);
+                    });
+                }
             }
         }
 
-        cmdInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                handleCommand(cmdInput.value);
-                historyIndex = -1; // Reset history index on new command
-            } 
-            else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                if (commandHistory.length > 0 && historyIndex < commandHistory.length - 1) {
-                    historyIndex++;
-                    cmdInput.value = commandHistory[commandHistory.length - 1 - historyIndex];
-                }
-            } 
-            else if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                if (historyIndex > 0) {
-                    historyIndex--;
-                    cmdInput.value = commandHistory[commandHistory.length - 1 - historyIndex];
-                } else if (historyIndex === 0) {
-                    historyIndex = -1;
-                    cmdInput.value = '';
-                }
+        function setupKeyboard(tty) {
+            const input = document.getElementById(tty.in);
+
+            if (tty.in === 'cmd-input2') {
+                input.addEventListener('input', function() {
+                    this.style.width = (this.value.length + 1) + 'ch';
+                });
+                input.style.width = '1ch';
             }
-            else if (e.key === 'Tab') {
-                e.preventDefault();
-                const args = cmdInput.value.split(' ');
-                const last = args[args.length - 1];
-                let matches = [];
 
-                if (args.length === 1) {
-                    matches = validCommands.filter(c => c.startsWith(last));
-                } else if (args[0] === 'cd') {
-                    matches = Object.keys(vfs).filter(d => d.startsWith(last));
-                } else if (args[0] === 'cat' && currentDir !== "") {
-                    matches = Object.keys(vfs[currentDir].files).filter(f => f.startsWith(last));
-                } else if (args[0] === 'theme') {
-                    matches = Object.keys(themes).filter(t => t.startsWith(last));
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    handleCommand(input.value);
+                    tty.historyIndex = -1; 
+                    if (tty.in === 'cmd-input2') input.style.width = '1ch'; 
+                } 
+                else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (tty.history.length > 0 && tty.historyIndex < tty.history.length - 1) {
+                        tty.historyIndex++;
+                        input.value = tty.history[tty.history.length - 1 - tty.historyIndex];
+                        if (tty.in === 'cmd-input2') input.style.width = (input.value.length + 1) + 'ch';
+                    }
+                } 
+                else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (tty.historyIndex > 0) {
+                        tty.historyIndex--;
+                        input.value = tty.history[tty.history.length - 1 - tty.historyIndex];
+                        if (tty.in === 'cmd-input2') input.style.width = (input.value.length + 1) + 'ch';
+                    } else if (tty.historyIndex === 0) {
+                        tty.historyIndex = -1;
+                        input.value = '';
+                        if (tty.in === 'cmd-input2') input.style.width = '1ch';
+                    }
                 }
+                else if (e.key === 'Tab') {
+                    e.preventDefault();
+                    const args = input.value.split(' ');
+                    const last = args[args.length - 1];
+                    let matches = [];
 
-                if (matches.length === 1) {
-                    args[args.length - 1] = matches[0];
-                    cmdInput.value = args.join(' ');
-                } else if (matches.length > 1) {
-                    printToTerminal(cmdInput.value, true);
-                    printToTerminal(matches.join('   '));
+                    if (args.length === 1) {
+                        matches = validCommands.filter(c => c.startsWith(last));
+                        const aliasMatches = Object.keys(tty.aliases).filter(a => a.startsWith(last));
+                        matches = [...new Set([...matches, ...aliasMatches])];
+                    } else if (args[0] === 'cd' || args[0] === 'mkdir') {
+                        matches = Object.keys(vfs).filter(d => d.startsWith(last));
+                    } else if (args[0] === 'cat' || args[0] === 'rm') {
+                        if (currentDir !== "") matches = Object.keys(vfs[currentDir].files).filter(f => f.startsWith(last));
+                    } else if (args[0] === 'theme' && activeTtyIndex === 0) {
+                        matches = Object.keys(themes).filter(t => t.startsWith(last));
+                    }
+
+                    if (matches.length === 1) {
+                        args[args.length - 1] = matches[0];
+                        input.value = args.join(' ');
+                        if (tty.in === 'cmd-input2') input.style.width = (input.value.length + 1) + 'ch';
+                    } else if (matches.length > 1) {
+                        printToTerminal(input.value, true);
+                        printToTerminal(matches.join('   '));
+                    }
                 }
+            });
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.altKey) {
+                if (e.key === 'F1') { e.preventDefault(); switchTty(0); }
+                else if (e.key === 'F2') { e.preventDefault(); switchTty(1); }
             }
         });
 
-        document.getElementById('right-pane').addEventListener('click', () => cmdInput.focus());
+        window.portfolioStartTime = Date.now();
+        activeTtyIndex = 0;
+        termOut = document.getElementById(ttys[0].out);
+        cmdInput = document.getElementById(ttys[0].in);
+        cliPrompt = document.getElementById(ttys[0].prompt);
 
         window.onload = () => {
-            updateGUI();
-            runNeofetch();
+            ttys.forEach(setupKeyboard); 
+            
+            updatePromptView();
+            handleCommand('neofetch', true);
             cmdInput.focus();
+
+            const originalActiveIndex = activeTtyIndex;
+            const originalTermOut = termOut;
+            const originalCliPrompt = cliPrompt;
+            
+            activeTtyIndex = 1;
+            termOut = document.getElementById(ttys[1].out);
+            cliPrompt = document.getElementById(ttys[1].prompt);
+            runRetroStartup();
+            
+            activeTtyIndex = originalActiveIndex;
+            termOut = originalTermOut;
+            cliPrompt = originalCliPrompt;
         };
+
+        document.getElementById('tty1-content').addEventListener('click', () => ttys[0].cmatrixInterval ? null : document.getElementById(ttys[0].in).focus());
+        document.getElementById('tty2-content').addEventListener('click', () => ttys[1].cmatrixInterval ? null : document.getElementById(ttys[1].in).focus());
+
     </script>
 </body>
 </html>
