@@ -738,7 +738,7 @@
                 { text: 'Focus: Cybersecurity & Network Infrastructure', type: 'typewriter', delay: 200 },
                 { text: 'Status: ACTIVE [Ready to collaborate]', type: 'typewriter', delay: 500 },
                 { text: '<br><div style="font-weight:bold; font-style: italic;">>> Type \'about\', \'education\', \'skills\', \'projects\', \'certs\', or \'contact\' to explore sections. <<</div>', type: 'instant' },
-                { text: '<div>>> Type \'help\' to see advanced shell commands. <<</div>', type: 'instant' },
+                { text: '<div>>> Type \'help\' to see available shell commands. <<</div>', type: 'instant' },
                 { text: '<br><div class="dash-separator">---------------------------------------------------------</div><br>', type: 'instant' }
             ];
 
@@ -1098,7 +1098,39 @@
                 out(`up ${Math.floor(uptimeS / 60)} minutes, ${uptimeS % 60} seconds`);
             }
             else if (cmd === 'help') {
-                out(`Portfolio Sections:\n  about        education        leadership\n  skills       projects         certs\n  contact\n\nShell Commands:\n  alias        cat          cd           clear\n  cmatrix      curl         date         echo\n  help         history      ls           mail\n  man          mkdir        neofetch     open\n  ping         pwd          rm           ssh\n  sudo         theme        top/htop     tree\n  uptime       whoami\n\nModifiers:\n  > or >>      Redirect output to a file\n  |            Pipe output (grep, wc, cowsay)`);
+                const helpText = `Available Commands:
+  alias          Define command shortcuts
+  cat <file>     Concatenate and print file contents
+  cd <dir>       Change working directory
+  clear          Clear the terminal screen
+  cmatrix        Show terminal matrix effect
+  cowsay         ASCII cow speech
+  curl <url>     Simulate fetching network data
+  date           Print system date and time
+  echo <text>    Print text to terminal
+  help           Display this help message
+  history        Show command history
+  ls             List directory contents
+  mail           Open email client
+  man <cmd>      Read manual pages (try 'man neil')
+  mkdir <dir>    Create directory (root only)
+  neofetch       Display system and user information
+  open <url>     Open external links (try 'open linkedin')
+  ping <host>    Send ICMP ECHO_REQUEST to network hosts
+  pwd            Print name of current/working directory
+  rm <file>      Remove file or directory (root only)
+  ssh <host>     Simulate secure shell login
+  sudo <cmd>     Execute a command as superuser
+  theme <name>   Change CSS theme
+  top/htop       Display Linux tasks
+  tree           Display system directory tree
+  uptime         Check how long terminal has been open
+  whoami         Print effective user ID
+
+Modifiers:
+  > or >>        Redirect output to a file
+  |              Pipe output (grep, wc, cowsay)`;
+                out(helpText);
             }
             else if (cmd === 'cowsay') {
                 const text = args.slice(1).join(' ') || "moo";
