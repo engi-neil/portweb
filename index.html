@@ -181,6 +181,9 @@
         .term-prompt { color: var(--fg-main); font-weight: bold; }
         .term-prompt::after { content: "❯"; margin-left: 6px; margin-right: 6px;}
         
+        /* Python REPL Formatting */
+        .python-prompt::after { content: ">>>" !important; color: var(--fg-main); margin-left: 0; margin-right: 6px; font-weight: bold;}
+        
         /* Root User Formatting */
         .root-prompt { color: #ff5555 !important; }
         .root-prompt::after { content: "#" !important; }
@@ -268,6 +271,7 @@
         }
         #tty2-pane .input-area .term-prompt { margin-right: 8px; }
         #tty2-pane .input-area .term-prompt::after { content: '$'; color: var(--fg-main); margin-left: 6px; margin-right: 0px; font-weight: bold; }
+        #tty2-pane .input-area .python-prompt::after { content: '>>>' !important; margin-left: 0;}
         
         /* CRT Vignette & Screen Curvature */
         #tty2-pane::before {
@@ -383,7 +387,7 @@
 
             <div id="right-pane" class="pane terminal-container">
                 <div id="terminal-output1" class="terminal-output"></div>
-                <div class="input-area">
+                <div class="input-area" id="input-area1">
                     <span class="term-prompt" id="cli-prompt1">nmacaro@portfolio:~</span>
                     <input type="text" id="cmd-input1" class="cmd-input" autocomplete="off" spellcheck="false" autofocus>
                 </div>
@@ -612,7 +616,12 @@
                 prompt: "cli-prompt1",
                 isRoot: false,
                 awaitingPassword: false,
-                cmatrixInterval: null
+                cmatrixInterval: null,
+                inPython: false,
+                inNano: false,
+                nanoFile: "",
+                nanoBuffer: [],
+                lastFortuneIndex: -1
             },
             { // TTY2 (CRT)
                 history: [],
@@ -625,7 +634,12 @@
                 prompt: "cli-prompt2",
                 isRoot: false,
                 awaitingPassword: false,
-                cmatrixInterval: null
+                cmatrixInterval: null,
+                inPython: false,
+                inNano: false,
+                nanoFile: "",
+                nanoBuffer: [],
+                lastFortuneIndex: -1
             }
         ];
 
@@ -640,10 +654,12 @@
         const rangerStatusLeft = document.getElementById('ranger-status-left');
 
         const validCommands = [
-            'ls', 'cd', 'cat', 'clear', 'neofetch', 'help', 'whoami', 'pwd', 
+            'ls', 'cd', 'cat', 'clear', 'help', '?', 'whoami', 'pwd', 
             'history', 'date', 'echo', 'sudo', 'ping', 'man', 'theme', 
             'cmatrix', 'grep', 'wc', 'tree', 'mkdir', 'rm', 'open', 'top', 
-            'htop', 'curl', 'alias', 'ssh', 'mail', 'uptime',
+            'htop', 'curl', 'alias', 'ssh', 'mail', 'uptime', 'weather',
+            'nmap', 'ipconfig', 'ifconfig', 'hash', 'git', 'python3', 'bc', 'cal', 'fortune', 'sl',
+            'neofetch', 'download', 'whois', 'apt', 'apt-get', 'pacman', 'traceroute', 'nano', 'vim', 'reboot', 'su',
             'about', 'education', 'leadership', 'skills', 'projects', 'certs', 'contact'
         ];
 
@@ -661,6 +677,15 @@
         }, 1000);
 
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        function hidePrompt() {
+            document.getElementById(activeTtyIndex === 0 ? 'input-area1' : 'input-area2').style.display = 'none';
+        }
+
+        function showPrompt() {
+            document.getElementById(activeTtyIndex === 0 ? 'input-area1' : 'input-area2').style.display = 'flex';
+            setTimeout(() => cmdInput.focus(), 10);
+        }
 
         function getPromptPath() {
             return currentDir === "" ? "~" : `~/${currentDir}`;
@@ -697,9 +722,15 @@
             div.className = 'term-line';
             
             if (isCmd) {
-                const promptText = `${tty.isRoot ? 'root' : tty.activeUser}@portfolio:${getPromptPath()}`;
-                const promptClass = tty.isRoot ? 'term-prompt root-prompt' : 'term-prompt';
-                div.innerHTML = `<span class="${promptClass}">${promptText}</span> <span class="term-cmd">${content}</span>`;
+                let promptText = `${tty.isRoot ? 'root' : tty.activeUser}@portfolio:${getPromptPath()}`;
+                let promptClass = tty.isRoot ? 'term-prompt root-prompt' : 'term-prompt';
+                
+                if (tty.inPython || tty.inNano) {
+                    promptText = '';
+                    promptClass = tty.inNano ? '' : 'term-prompt python-prompt';
+                }
+
+                div.innerHTML = tty.inNano ? `<span class="term-cmd">${content}</span>` : `<span class="${promptClass}">${promptText}</span> <span class="term-cmd">${content}</span>`;
             } else if (isHtml) {
                 div.innerHTML = content;
             } else {
@@ -724,6 +755,36 @@
             inputArea2.style.display = 'none'; 
 
             const asciiLogo = `\n _______  ___________.___.____     \n \\      \\ \\_   _____/|   |    |    \n /   |   \\ |    __)_ |   |    |    \n/    |    \\|        \\|   |    |___ \n\\____|__  /_______  /|___|_______ \\\n        \\/        \\/             \\/\n`;
+            
+            const neofetchHtml = `
+                <div class="neofetch-wrapper">
+                    <div class="ascii-art">
+ ███╗   ██╗███╗   ███╗
+ ████╗  ██║████╗ ████║
+ ██╔██╗ ██║██╔████╔██║
+ ██║╚██╗██║██║╚██╔╝██║
+ ██║ ╚████║██║ ╚═╝ ██║
+ ╚═╝  ╚═══╝╚═╝     ╚═╝
+                    </div>
+                    <div class="sys-info">
+                        <div class="sys-header">guest@portfolio</div>
+                        <div style="color:var(--fg-dim);">-------------------</div>
+                        <div class="sys-line"><div class="sys-key">OS</div><div class="sys-val">Mapúa OS x86_64</div></div>
+                        <div class="sys-line"><div class="sys-key">Host</div><div class="sys-val">Neil Emmanuel R. Macaro</div></div>
+                        <div class="sys-line"><div class="sys-key">Kernel</div><div class="sys-val">Cybersecurity 5.19.11</div></div>
+                        <div class="sys-line"><div class="sys-key">Uptime</div><div class="sys-val">2022 - Present</div></div>
+                        <div class="sys-line"><div class="sys-key">Packages</div><div class="sys-val">10 (Cisco), 5 (Coursera)</div></div>
+                        <div class="sys-line"><div class="sys-key">Shell</div><div class="sys-val">Bash 5.1.16</div></div>
+                        <div class="sys-line"><div class="sys-key">WM</div><div class="sys-val">Hyprland (Wayland)</div></div>
+                        <div class="sys-line"><div class="sys-key">Location</div><div class="sys-val">Quezon City, Philippines</div></div>
+                        <div class="color-blocks">
+                            <div class="cb" style="background:#111"></div><div class="cb" style="background:#333"></div>
+                            <div class="cb" style="background:#555"></div><div class="cb" style="background:#777"></div>
+                            <div class="cb" style="background:#999"></div><div class="cb" style="background:#bbb"></div>
+                            <div class="cb" style="background:#ddd"></div><div class="cb" style="background:#fff"></div>
+                        </div>
+                    </div>
+                </div>`;
 
             const sequenceLines = [
                 { text: `<pre style="color:var(--fg-main); text-shadow: 0 0 6px var(--fg-main);">${asciiLogo}</pre>`, type: 'instant' },
@@ -733,12 +794,13 @@
                 { text: 'Checking peripherals: Virtual Environment detected...', type: 'typewriter', delay: 700 },
                 { text: 'Mounting file system: /home/nmacaro...', type: 'typewriter', delay: 500 },
                 { text: '<br><div class="dash-separator">---------------------------------------------------------</div><br>', type: 'instant' },
-                { text: 'User: Neil Emmanuel R. Macaro', type: 'typewriter', delay: 200 },
+                { text: neofetchHtml, type: 'instant' },
+                { text: '<div style="font-weight:bold; margin-top: 16px;">User: Neil Emmanuel R. Macaro</div>', type: 'typewriter', delay: 200 },
                 { text: 'Role: Computer Engineering Undergraduate', type: 'typewriter', delay: 200 },
                 { text: 'Focus: Cybersecurity & Network Infrastructure', type: 'typewriter', delay: 200 },
                 { text: 'Status: ACTIVE [Ready to collaborate]', type: 'typewriter', delay: 500 },
                 { text: '<br><div style="font-weight:bold; font-style: italic;">>> Type \'about\', \'education\', \'skills\', \'projects\', \'certs\', or \'contact\' to explore sections. <<</div>', type: 'instant' },
-                { text: '<div>>> Type \'help\' to see available shell commands. <<</div>', type: 'instant' },
+                { text: '<div>>> Type \'help\' or \'?\' to see available shell commands. <<</div>', type: 'instant' },
                 { text: '<br><div class="dash-separator">---------------------------------------------------------</div><br>', type: 'instant' }
             ];
 
@@ -814,6 +876,39 @@
 
         function handleCommand(cmdStr, executedFromGUI = false) {
             const tty = ttys[activeTtyIndex];
+            const originalCmdStr = cmdStr.trim();
+            if (!originalCmdStr) return;
+
+            if (!executedFromGUI && !tty.inNano) {
+                tty.history.push(originalCmdStr);
+            }
+
+            // --- Python REPL Intercept ---
+            if (tty.inPython) {
+                printToTerminal(originalCmdStr, true);
+                let pyCmd = originalCmdStr.trim();
+                
+                if (pyCmd === 'exit()' || pyCmd === 'quit()' || pyCmd === 'quit' || pyCmd === 'exit') {
+                    tty.inPython = false;
+                    updatePromptView();
+                } else if (pyCmd) {
+                    try {
+                        if(/^[0-9+\-*/(). ]+$/.test(pyCmd)) {
+                            printToTerminal(eval(pyCmd).toString());
+                        } else if (pyCmd.startsWith('print(')) {
+                            let match = pyCmd.match(/print\(['"](.*)['"]\)/);
+                            if (match) printToTerminal(match[1]);
+                            else printToTerminal("SyntaxError: invalid syntax");
+                        } else {
+                            printToTerminal(`Traceback (most recent call last):\n  File "<stdin>", line 1, in <module>\nNameError: name '${pyCmd.split(' ')[0]}' is not defined`);
+                        }
+                    } catch(e) {
+                        printToTerminal("SyntaxError: invalid syntax");
+                    }
+                }
+                if (!executedFromGUI) { cmdInput.value = ''; setTimeout(() => cmdInput.focus(), 10); }
+                return;
+            }
 
             if (tty.awaitingPassword) {
                 const div = document.createElement('div');
@@ -845,13 +940,6 @@
                 updatePromptView();
                 if(!executedFromGUI) { cmdInput.value = ''; setTimeout(() => cmdInput.focus(), 10); }
                 return;
-            }
-
-            const originalCmdStr = cmdStr.trim();
-            if (!originalCmdStr) return;
-
-            if (!executedFromGUI) {
-                tty.history.push(originalCmdStr);
             }
 
             printToTerminal(originalCmdStr, true);
@@ -914,13 +1002,88 @@
                 if (isHtml) isHtmlOut = true;
             };
 
-            // Non-buffered Commands
-            if (['clear', 'theme', 'cmatrix'].includes(cmd)) {
+            // Async & Special Commands bypassing buffer
+            if (cmd === 'apt' || cmd === 'apt-get' || cmd === 'pacman') {
+                if (target === 'update' || args[2] === 'update' || args[1] === '-Syu') {
+                    (async () => {
+                        hidePrompt();
+                        const lines = [
+                            "Hit:1 http://ph.archive.ubuntu.com/ubuntu jammy InRelease",
+                            "Get:2 http://ph.archive.ubuntu.com/ubuntu jammy-updates InRelease [119 kB]",
+                            "Get:3 http://security.ubuntu.com/ubuntu jammy-security InRelease [110 kB]",
+                            "Get:4 http://ph.archive.ubuntu.com/ubuntu jammy-backports InRelease [109 kB]",
+                            "Reading package lists... Done",
+                            "Building dependency tree... Done",
+                            "Reading state information... Done",
+                            "All packages are up to date.",
+                            "<br><span style='color:var(--fg-main); font-weight:bold;'>System fully optimized for hiring.</span><br>"
+                        ];
+                        for (let l of lines) { printToTerminal(l, false, true); await sleep(250); }
+                        showPrompt();
+                    })();
+                    return;
+                }
+            }
+            
+            else if (cmd === 'traceroute' && target) {
+                (async () => {
+                    hidePrompt();
+                    printToTerminal(`traceroute to ${target} (93.184.216.34), 30 hops max, 60 byte packets`);
+                    const hops = [
+                        ` 1  router.local (192.168.1.1)  1.123 ms`,
+                        ` 2  isp-gateway.manila (10.4.3.2)  15.432 ms`,
+                        ` 3  core-backbone.pldt.net (122.2.14.5)  18.001 ms`,
+                        ` 4  international-link.hk (202.4.5.6)  45.120 ms`,
+                        ` 5  ${target} (93.184.216.34)  102.550 ms`
+                    ];
+                    for (let l of hops) { printToTerminal(l); await sleep(400); }
+                    showPrompt();
+                })();
+                return;
+            }
+
+            else if ((cmd === 'nano' || cmd === 'vim') && target) {
+                tty.inNano = true;
+                tty.nanoFile = target;
+                tty.nanoBuffer = [];
+                termOut.innerHTML = `<div style="background:var(--fg-main); color:var(--bg-base); text-align:center; font-weight:bold; padding: 4px;">GNU nano 6.2 &nbsp;&nbsp;&nbsp;&nbsp; File: ${target}</div><div style="margin-top:10px; color:var(--fg-dim);">Type your message below. Press <span style="font-weight:bold; color:var(--fg-main);">Ctrl+X</span> to save and exit.</div><br>`;
+                updatePromptView(); 
+                if(!executedFromGUI) { cmdInput.value = ''; setTimeout(() => cmdInput.focus(), 10); }
+                return;
+            }
+
+            else if (cmd === 'clear') {
+                termOut.innerHTML = '<div style="color: #333; font-style: italic; text-align: center; margin-bottom: 10px; user-select:none;">The terminal remembers everything.</div>';
+                if(!executedFromGUI) { cmdInput.value = ''; setTimeout(() => cmdInput.focus(), 10); }
+                return;
+            }
+            
+            else if (cmd === 'reboot') {
+                if (!tty.isRoot && !originalCmdStr.startsWith('sudo')) out("reboot: Permission denied (Use 'sudo')");
+                else {
+                    hidePrompt();
+                    termOut.innerHTML = '';
+                    if (activeTtyIndex === 1) {
+                        runRetroStartup();
+                    } else {
+                        printToTerminal("System rebooting...");
+                        setTimeout(() => {
+                            termOut.innerHTML = '';
+                            handleCommand('neofetch', true);
+                            termOut.innerHTML = ''; // Hide execution
+                            handleCommand('neofetch', true);
+                            showPrompt();
+                        }, 1000);
+                    }
+                    return;
+                }
+            }
+
+            else if (['theme', 'cmatrix'].includes(cmd)) {
                 if (pipeCmd || redirectTarget) {
                     printToTerminal(`bash: ${cmd}: piping/redirection not supported for DOM-manipulating commands`);
                 } else {
-                     if (cmd === 'clear') termOut.innerHTML = '';
-                     else if (cmd === 'theme') {
+                     if (cmd === 'theme') {
                         if (activeTtyIndex !== 0) {
                             out("Themes are only compatible with Workspace 1:SYS.");
                         } else if (!target || !themes[target]) {
@@ -963,7 +1126,6 @@
 
             // --- Buffered Commands ---
             
-            // Core Portfolio Macro-Commands
             if (cmd === 'about') {
                 out(document.getElementById('tpl-about-profile').innerHTML, true);
             }
@@ -990,17 +1152,46 @@
                 out(document.getElementById('tpl-contact-details').innerHTML, true);
             }
 
-            // Standard Commands
+            else if (cmd === 'download' && (target === 'resume' || target === 'pdf')) {
+                out("Generating PDF payload...");
+                out("Downloading Neil_Macaro_Resume.pdf...");
+                const a = document.createElement('a');
+                // IMPORTANT: Place your actual resume file in the same folder as this HTML file
+                // and name it "Neil_Macaro_Resume.pdf". 
+                a.href = "Neil_Macaro_Resume.pdf"; 
+                a.download = "Neil_Macaro_Resume.pdf";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+            else if (cmd === 'whois' && target) {
+                if (target === 'nmacaro' || target === 'neil') {
+                    out(`Domain Name: NMACARO\nRegistrant Name: Neil Emmanuel R. Macaro\nRegistrant Organization: Mapúa University\nRegistrant Status: Open to Work\n\nName Server: ns1.cybersecurity.net\nName Server: ns2.network-infra.com\n\nDNSSEC: signedDelegation\nURL of the ICANN Whois Inaccuracy Complaint Form: https://www.icann.org/wicf/`);
+                } else {
+                    out(`No match for domain "${target}".`);
+                }
+            }
+            else if (cmd === 'su') {
+                if (!tty.isRoot && !originalCmdStr.startsWith('sudo')) out("su: Authentication failure");
+                else {
+                    tty.isRoot = true;
+                    tty.activeUser = 'root';
+                    out("Switched to root user. With great power comes great responsibility.");
+                    updatePromptView();
+                }
+            }
             else if (cmd === 'ls') {
                 if (currentDir === "") {
-                    out(Object.keys(vfs).map(k => `[DIR]  ${k}`).join('\n'));
+                    let rootDirs = Object.keys(vfs).map(k => `[DIR]  ${k}`).join('\n');
+                    if (tty.isRoot) rootDirs += '\n[FILE] classified.txt';
+                    out(rootDirs);
                 } else {
                     out(Object.keys(vfs[currentDir].files).map(k => `[FILE] ${k}`).join('\n'));
                 }
             }
             else if (cmd === 'cd') {
                 if (!target || target === '~' || target === '..') currentDir = "";
-                else if (target === '.') {} // Do nothing
+                else if (target === '.') {} 
                 else if (vfs[target] && currentDir === "") {
                     currentDir = target;
                     out(Object.keys(vfs[target].files).map(k => `[FILE] ${k}`).join('\n'));
@@ -1041,8 +1232,8 @@
                 if (target === 'secret-server') out("Connecting to secret-server...\nAccess Denied (publickey). Registration required.");
                 else out(`ssh: Could not resolve hostname ${target ? target : ''}: Name or service not known`);
             }
-            else if (cmd === 'curl') {
-                if (target === 'weather') out(`Weather report: Quezon City, Philippines\n   \\  /       Partly cloudy\n _ /"".\\_     +32°C\n   \\_( )_\\    Wind: 10 km/h SW\n\nData provided by WTTR in mock mode.`);
+            else if (cmd === 'curl' || cmd === 'weather') {
+                if (target === 'weather' || cmd === 'weather') out(`Weather report: Quezon City, Philippines\n   \\  /       Partly cloudy\n _ /"".\\_     +32°C\n   \\_( )_\\    Wind: 10 km/h SW\n\nData provided by WTTR in mock mode.`);
                 else if (target === 'github') out(`Fetching recent repositories for nmacaro...\n[\n  {"name": "bash-deadline-reminder", "language": "Shell"},\n  {"name": "ScientificResearch-Assistant", "language": "Python"}\n]`);
                 else out(`curl: (6) Could not resolve host: ${target ? target : ''}`);
             }
@@ -1081,7 +1272,10 @@
                 else { vfs[target] = { type: 'dir', files: {} }; out(`mkdir: Directory '${target}' created.`); updatePromptView(); }
             }
             else if (cmd === 'rm') {
-                if (!tty.isRoot) out(`rm: cannot remove '${target}': Permission denied (Use 'sudo')`);
+                if (target === '-rf' && args[2] === '/') {
+                    out(`<span style="color:#ff5555; font-weight:bold; font-size:1.2em; animation: blink 1s step-end infinite;">[KERNEL PANIC] - CRITICAL SYSTEM FAILURE AVERTED. NICE TRY.</span>`, true);
+                }
+                else if (!tty.isRoot) out(`rm: cannot remove '${target}': Permission denied (Use 'sudo')`);
                 else if (!target) out(`rm: missing operand`);
                 else {
                     if (currentDir === "") {
@@ -1097,9 +1291,126 @@
                 const uptimeS = Math.floor((Date.now() - window.portfolioStartTime) / 1000);
                 out(`up ${Math.floor(uptimeS / 60)} minutes, ${uptimeS % 60} seconds`);
             }
-            else if (cmd === 'help') {
+            else if (cmd === 'nmap') {
+                if (!target) out("nmap: missing host operand");
+                else {
+                    out(`Starting Nmap 7.93 ( https://nmap.org ) at ${new Date().toLocaleTimeString()}\nNmap scan report for ${target}\nHost is up (0.00013s latency).\nNot shown: 997 closed tcp ports (reset)\nPORT    STATE SERVICE\n22/tcp  open  ssh\n80/tcp  open  http\n443/tcp open  https\n\nNmap done: 1 IP address (1 host up) scanned in 0.21 seconds`);
+                }
+            }
+            else if (cmd === 'ipconfig' || cmd === 'ifconfig') {
+                out(`eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500\n        inet 192.168.1.147  netmask 255.255.255.0  broadcast 192.168.1.255\n        inet6 fe80::a23b:c4d5:e6f7:g8h9  prefixlen 64  scopeid 0x20<link>\n        ether 00:1A:2B:3C:4D:5E  txqueuelen 1000  (Ethernet)\n        RX packets 1337  bytes 1234567 (1.1 MiB)\n        TX packets 1024  bytes 987654 (964.5 KiB)\n\nlo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536\n        inet 127.0.0.1  netmask 255.0.0.0\n        loop  txqueuelen 1000  (Local Loopback)`);
+            }
+            else if (cmd === 'hash') {
+                const textToHash = args.slice(1).join(' ');
+                if (!textToHash) out("hash: missing string operand");
+                else {
+                    let mockHash = Array.from(textToHash).reduce((s, c) => Math.imul(31, s) + c.charCodeAt(0) | 0, 0).toString(16);
+                    mockHash = (mockHash + "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6").padEnd(64, '0').substring(0, 64);
+                    out(`SHA256: ${mockHash}`);
+                }
+            }
+            else if (cmd === 'git') {
+                if (target === 'status') out('On branch main\nYour branch is up to date with "origin/main".\n\nnothing to commit, working tree clean');
+                else if (target === 'log') out(`commit 9f8a3b2c1d4e5f6g7h8i9j0k (HEAD -> main, origin/main)\nAuthor: Neil Macaro <macaroneil16@gmail.com>\nDate:   Wed Apr 29 10:40:50 2026 +0800\n\n    Added RAG AI project and updated certifications`);
+                else out(`git: '${target ? target : ''}' is not a git command. See 'git --help'.`);
+            }
+            else if (cmd === 'python3') {
+                tty.inPython = true;
+                out("Python 3.10.12 (main, Nov 20 2023, 15:14:05) [GCC 11.4.0] on linux\nType \"help\", \"copyright\", \"credits\" or \"license\" for more information.");
+                updatePromptView();
+            }
+            else if (cmd === 'bc') {
+                let expr = args.slice(1).join('');
+                if (!expr) {
+                    out("bc 1.07.1\nCopyright 1991-1994, 1997, 1998, 2000, 2004, 2006, 2008, 2012-2017 Free Software Foundation, Inc.");
+                } else if (expr.replace(/\s+/g, '') === '1+1') {
+                    out("11");
+                } else {
+                    try {
+                        let clean = expr.replace(/[^0-9+\-*/().]/g, '');
+                        out(eval(clean).toString());
+                    } catch(e) {
+                        out("Parse error");
+                    }
+                }
+            }
+            else if (cmd === 'cal') {
+                const now = new Date();
+                const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+                const month = monthNames[now.getMonth()];
+                const year = now.getFullYear();
+                let calStr = `    ${month} ${year}\nSu Mo Tu We Th Fr Sa\n`;
+                const firstDay = new Date(year, now.getMonth(), 1).getDay();
+                const daysInMonth = new Date(year, now.getMonth()+1, 0).getDate();
+                let row = "   ".repeat(firstDay);
+                for(let i=1; i<=daysInMonth; i++) {
+                    row += i.toString().padStart(2, ' ') + " ";
+                    if((i + firstDay) % 7 === 0) { calStr += row.trimEnd() + '\n'; row = ""; }
+                }
+                if(row) calStr += row.trimEnd();
+                out(calStr);
+            }
+            else if (cmd === 'fortune') {
+                const quotes = [
+                    "The best way to predict the future is to invent it.",
+                    "It compiles! Ship it!",
+                    "There are 10 types of people in the world: those who understand binary, and those who don't.",
+                    "Unix is user-friendly. It just isn't promiscuous about which users it's friendly with.",
+                    "A completely bug-free program is a theoretical concept.",
+                    "I am not a great programmer; I am just a good programmer with great habits.",
+                    "Mas madaling hulihin ang manok kapag nakatali.",
+                    "Sana ako nalang.",
+                    "Miss ko na siya.",
+                    "Why do programmers prefer dark mode? Because light attracts bugs.",
+                    "Bakit laging puyat ang mga IT? Kasi nagde-debug sila ng feelings nila.",
+                    "A SQL query goes into a bar, walks up to two tables and asks... 'Can I join you?'",
+                    "Bakit tinatamad ang computer? Kasi hard drive siya ng hard drive.",
+                    "I have a joke about UDP, but you might not get it.",
+                    "Gusto ko lang naman mag-commit... sa repo at sa'yo.",
+                    "How many programmers does it take to change a light bulb? None, that's a hardware problem.",
+                    "Ano ang sabi ng zero sa eight? 'Nice belt!'",
+                    "My code doesn’t work, I have no idea why. My code works, I have no idea why.",
+                    "Anong ginagawa ng mga programmers kapag heartbroken? Nagha-handle ng exceptions.",
+                    "May error ang code mo, pero mas may error ang pinili mong mahalin.",
+                    "Sana boolean na lang ang feelings, para true or false lang. Walang 'it's complicated'.",
+                    "My love for you is like a while(true) loop... walang katapusan.",
+                    "Buti pa ang git, pwedeng i-undo ang past. Sa pag-ibig, hindi.",
+                    "There's no place like 127.0.0.1",
+                    "Bakit hindi nag-uusap ang mga C++ objects? Kasi they keep their members private.",
+                    "You are the semicolon to my statements. I can't function without you.",
+                    "Bakit mo pa de-debug, kung pwede namang i-delete at mag-move on?",
+                    "Are you a computer keyboard? Because you're my type.",
+                    "Bakit madaming single sa IT? Kasi sanay silang mag-isa mag-solve ng problema.",
+                    "Hardware is what makes a machine fast. Software is what makes a fast machine slow.",
+                    "Mas mabilis pa ang ping ko sa Google kaysa sa reply mo.",
+                    "Tayo ay parang parallel lines... always close, but will never intersect.",
+                    "I would love to change the world, but they won't give me the source code.",
+                    "Sana kaya ding i-Ctrl+Z ang mga maling desisyon sa buhay.",
+                    "You had me at 'Hello World'.",
+                    "Error 404: Pake ko not found.",
+                    "Bakit pa tayo magta-try-catch kung alam ko namang sasaluhin mo ako?",
+                    "Programming is 10% writing code and 90% understanding why it's not working.",
+                    "Hindi lahat ng naka-open port, handang tumanggap ng connection."
+                ];
+                
+                let randIdx;
+                do {
+                    randIdx = Math.floor(Math.random() * quotes.length);
+                } while (randIdx === tty.lastFortuneIndex);
+                
+                tty.lastFortuneIndex = randIdx;
+                out(quotes[randIdx]);
+            }
+            else if (cmd === 'sl') {
+                const train = `      ====        ________                ___________ \n  _D _|  |_______/        \\__I_I_____===__|_________| \n   |(_)---  |   H\\________/ |   |        =|___ ___|   \n   /     |  |   H  |  |     |   |         ||_| |_||   \n  |      |  |   H  |__--------------------| [___] |   \n  | ________|___H__/__|_____/[][]~\\_______|       |   \n  |/ |   |-----------I_____I [][] []  D   |=======|__ \n__/ =| o |=-~~\\  /~~\\  /~~\\  /~~\\ ____Y___________|__ \n |/-=|___|=    ||    ||    ||    |_____/~\\___/        \n  \\_/      \\_O=====O=====O=====O/      \\_/            `;
+                out(train);
+            }
+            else if (cmd === 'help' || cmd === '?') {
                 const helpText = `Available Commands:
   alias          Define command shortcuts
+  apt update     Update package repositories
+  bc <expr>      Basic calculator (e.g. bc 5+5)
+  cal            Display a calendar
   cat <file>     Concatenate and print file contents
   cd <dir>       Change working directory
   clear          Clear the terminal screen
@@ -1107,25 +1418,37 @@
   cowsay         ASCII cow speech
   curl <url>     Simulate fetching network data
   date           Print system date and time
+  download       Download resources (try 'download resume')
   echo <text>    Print text to terminal
-  help           Display this help message
+  fortune        Print a random adage or joke
+  git            Version control mock
+  hash <text>    Generate a SHA256 mock hash
+  help or ?      Display this help message
   history        Show command history
+  ipconfig       Display network interface info
   ls             List directory contents
   mail           Open email client
   man <cmd>      Read manual pages (try 'man neil')
   mkdir <dir>    Create directory (root only)
+  nano <file>    Open an interactive text editor
   neofetch       Display system and user information
+  nmap <host>    Simulate network port scan
   open <url>     Open external links (try 'open linkedin')
   ping <host>    Send ICMP ECHO_REQUEST to network hosts
   pwd            Print name of current/working directory
+  python3        Enter interactive Python REPL
   rm <file>      Remove file or directory (root only)
+  sl             Cure for typing 'ls' too fast
   ssh <host>     Simulate secure shell login
   sudo <cmd>     Execute a command as superuser
   theme <name>   Change CSS theme
   top/htop       Display Linux tasks
+  traceroute     Print packet trace to network host
   tree           Display system directory tree
   uptime         Check how long terminal has been open
+  weather        Display current weather mock
   whoami         Print effective user ID
+  whois <user>   Display domain/user details
 
 Modifiers:
   > or >>        Redirect output to a file
@@ -1171,6 +1494,16 @@ Modifiers:
             }
             else if (cmd === 'cat') {
                 if (!target) out("cat: missing file operand");
+                else if (target === '/var/log/syslog') {
+                    out(`Apr 29 11:05:04 kernel: [    0.000000] Linux version 5.19.11-cybersec (nmacaro@portfolio)\nApr 29 11:05:04 kernel: [    0.412312] ACPI: Added _OSI(Linux-Dell-Video)\nApr 29 11:05:04 systemd[1]: Started Network Manager.\nApr 29 11:05:05 kernel: [    1.821034] usb 1-1: New USB device found, idVendor=046d, idProduct=c52b\nApr 29 11:05:06 ufw: [UFW BLOCK] IN=eth0 OUT= MAC=00:1a:2b:3c:4d SRC=192.168.1.100 DST=192.168.1.147 LEN=40 TOS=0x00 PREC=0x00 TTL=245 ID=10545 PROTO=TCP SPT=49152 DPT=22 WINDOW=1024 RES=0x00 SYN URGP=0`);
+                }
+                else if (target === 'classified.txt' && currentDir === "") {
+                    if (tty.isRoot) out("TOP SECRET CLEARANCE ACCEPTED.\n\nProject 'Hire Neil' is currently underway. All systems report excellent candidate compatibility. Proceed to contact immediately.");
+                    else out("cat: classified.txt: Permission denied");
+                }
+                else if (localStorage.getItem(`file_${target}`)) {
+                    out(localStorage.getItem(`file_${target}`));
+                }
                 else {
                     if (currentDir !== "") {
                         const templateId = vfs[currentDir].files[target];
@@ -1271,8 +1604,16 @@ Modifiers:
                 cliPrompt.textContent = `[sudo] password for ${tty.activeUser}: `;
                 cliPrompt.className = "term-prompt";
             } else {
-                cliPrompt.textContent = `${tty.isRoot ? 'root' : tty.activeUser}@portfolio:${getPromptPath()}`;
-                cliPrompt.className = tty.isRoot ? "term-prompt root-prompt" : "term-prompt";
+                let promptText = `${tty.isRoot ? 'root' : tty.activeUser}@portfolio:${getPromptPath()}`;
+                let promptClass = tty.isRoot ? "term-prompt root-prompt" : "term-prompt";
+                
+                if (tty.inPython || tty.inNano) {
+                    promptText = '';
+                    promptClass = tty.inNano ? '' : 'term-prompt python-prompt';
+                }
+
+                cliPrompt.textContent = promptText;
+                cliPrompt.className = promptClass;
             }
 
             if (activeTtyIndex === 0) {
@@ -1320,6 +1661,26 @@ Modifiers:
             }
 
             input.addEventListener('keydown', (e) => {
+                if (tty.inNano) {
+                    if (e.ctrlKey && e.key.toLowerCase() === 'x') {
+                        e.preventDefault();
+                        localStorage.setItem(`file_${tty.nanoFile}`, tty.nanoBuffer.join('\n'));
+                        tty.inNano = false;
+                        termOut.innerHTML = '';
+                        printToTerminal(`Saved 1 file: ${tty.nanoFile}`);
+                        updatePromptView();
+                        if (tty.in === 'cmd-input2') input.style.width = '1ch'; 
+                        return;
+                    }
+                    if (e.key === 'Enter') {
+                        tty.nanoBuffer.push(input.value);
+                        printToTerminal(input.value);
+                        input.value = '';
+                        if (tty.in === 'cmd-input2') input.style.width = '1ch'; 
+                    }
+                    return; 
+                }
+
                 if (e.key === 'Enter') {
                     handleCommand(input.value);
                     tty.historyIndex = -1; 
@@ -1357,7 +1718,7 @@ Modifiers:
                         matches = [...new Set([...matches, ...aliasMatches])];
                     } else if (args[0] === 'cd' || args[0] === 'mkdir') {
                         matches = Object.keys(vfs).filter(d => d.startsWith(last));
-                    } else if (args[0] === 'cat' || args[0] === 'rm') {
+                    } else if (args[0] === 'cat' || args[0] === 'rm' || args[0] === 'nano') {
                         if (currentDir !== "") matches = Object.keys(vfs[currentDir].files).filter(f => f.startsWith(last));
                     } else if (args[0] === 'theme' && activeTtyIndex === 0) {
                         matches = Object.keys(themes).filter(t => t.startsWith(last));
@@ -1392,7 +1753,12 @@ Modifiers:
             ttys.forEach(setupKeyboard); 
             
             updatePromptView();
+            // Start neofetch on TTY1 but hide the command execution
+            ttys[0].history.push('neofetch');
             handleCommand('neofetch', true);
+            termOut.innerHTML = ''; // Clear the initial command execution display
+            handleCommand('neofetch', true); // Run it again so it's just the output
+            
             cmdInput.focus();
 
             const originalActiveIndex = activeTtyIndex;
