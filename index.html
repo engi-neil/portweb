@@ -621,7 +621,8 @@
                 inNano: false,
                 nanoFile: "",
                 nanoBuffer: [],
-                lastFortuneIndex: -1
+                lastFortuneIndex: -1,
+                guessSecret: null
             },
             { // TTY2 (CRT)
                 history: [],
@@ -639,7 +640,8 @@
                 inNano: false,
                 nanoFile: "",
                 nanoBuffer: [],
-                lastFortuneIndex: -1
+                lastFortuneIndex: -1,
+                guessSecret: null
             }
         ];
 
@@ -660,6 +662,10 @@
             'htop', 'curl', 'alias', 'ssh', 'mail', 'uptime', 'weather',
             'nmap', 'ipconfig', 'ifconfig', 'hash', 'git', 'python3', 'bc', 'cal', 'fortune', 'sl',
             'neofetch', 'download', 'whois', 'apt', 'apt-get', 'pacman', 'traceroute', 'nano', 'vim', 'reboot', 'su',
+            'netstat', 'lscpu', 'free', 'roll', 'startx', 'gui', 'who',
+            'sqlmap', 'hydra', 'john', 'nslookup', 'dig', 'docker', 'make', 'gcc', 'chmod', 'coffee',
+            'bofh', 'rickroll', 'hack', 'hire', 'cbonsai', 'pipes', 'tshark', 'tcpdump', 'aircrack-ng',
+            'ollama', 'npm', 'pip', 'guess', 'telnet',
             'about', 'education', 'leadership', 'skills', 'projects', 'certs', 'contact'
         ];
 
@@ -883,6 +889,18 @@
                 tty.history.push(originalCmdStr);
             }
 
+            // --- Intercept "make me a sandwich" (xkcd joke) ---
+            if (originalCmdStr.includes("make me a sandwich")) {
+                printToTerminal(originalCmdStr, true);
+                if (originalCmdStr.startsWith('sudo')) {
+                    printToTerminal("Okay.");
+                } else {
+                    printToTerminal("What? Make it yourself.");
+                }
+                if (!executedFromGUI) { cmdInput.value = ''; setTimeout(() => cmdInput.focus(), 10); }
+                return;
+            }
+
             // --- Python REPL Intercept ---
             if (tty.inPython) {
                 printToTerminal(originalCmdStr, true);
@@ -1002,7 +1020,10 @@
                 if (isHtml) isHtmlOut = true;
             };
 
-            // Async & Special Commands bypassing buffer
+            // ==========================================
+            // ASYNC / SPECIAL COMMANDS (Bypass Output Buffer)
+            // ==========================================
+
             if (cmd === 'apt' || cmd === 'apt-get' || cmd === 'pacman') {
                 if (target === 'update' || args[2] === 'update' || args[1] === '-Syu') {
                     (async () => {
@@ -1022,9 +1043,10 @@
                         showPrompt();
                     })();
                     return;
+                } else {
+                     out(`Usage: ${cmd} update`);
                 }
             }
-            
             else if (cmd === 'traceroute' && target) {
                 (async () => {
                     hidePrompt();
@@ -1041,7 +1063,172 @@
                 })();
                 return;
             }
-
+            else if (cmd === 'sqlmap' && target) {
+                (async () => {
+                    hidePrompt();
+                    const lines = [
+                        `[INFO] testing connection to the target URL`,
+                        `[INFO] checking if the target is protected by some kind of WAF/IPS`,
+                        `[INFO] testing if the target URL content is stable`,
+                        `[INFO] testing 'AND boolean-based blind - WHERE or HAVING clause'`,
+                        `[INFO] GET parameter 'id' appears to be 'AND boolean-based blind - WHERE or HAVING clause' injectable`,
+                        `[INFO] testing 'Generic UNION query (NULL) - 1 to 20 columns'`,
+                        `[<span style="color:#0f0;">SUCCESS</span>] GET parameter 'id' is vulnerable. Do you want to keep testing the others (if any)? [y/N]`,
+                        `sqlmap identified the following injection point(s) with a total of 46 HTTP(s) requests:`
+                    ];
+                    for (let l of lines) { printToTerminal(l, false, true); await sleep(300); }
+                    showPrompt();
+                })();
+                return;
+            }
+            else if (cmd === 'hydra' || cmd === 'john') {
+                (async () => {
+                    hidePrompt();
+                    printToTerminal(`Hydra v9.3 (c) 2022 by van Hauser/THC - Please do not use in military or secret service organizations`);
+                    printToTerminal(`[DATA] max 16 tasks per 1 server, overall 16 tasks, 2500000 login tries (l:1/p:2500000)`);
+                    for(let i=0; i<5; i++) {
+                        printToTerminal(`[ATTEMPT] target 192.168.1.100 - login "admin" - pass "${Math.random().toString(36).substring(2,8)}"`);
+                        await sleep(150);
+                    }
+                    printToTerminal(`[<span style="color:#0f0;">SUCCESS</span>] target: 192.168.1.100 - login "admin" - password "hire_neil_2026"`, false, true);
+                    showPrompt();
+                })();
+                return;
+            }
+            else if (cmd === 'make' || cmd === 'gcc') {
+                (async () => {
+                    hidePrompt();
+                    for(let i=0; i<6; i++) {
+                        let file = `module_${i}.c`;
+                        printToTerminal(`gcc -c -Wall -O2 ${file} -o ${file.replace('.c','.o')}`);
+                        await sleep(200);
+                    }
+                    printToTerminal(`gcc -o main module_0.o module_1.o module_2.o module_3.o module_4.o module_5.o`);
+                    await sleep(300);
+                    printToTerminal(`Build complete. 0 errors, 0 warnings.`);
+                    showPrompt();
+                })();
+                return;
+            }
+            else if (cmd === 'hack') {
+                (async () => {
+                    hidePrompt();
+                    for(let i=0; i<15; i++) {
+                        let hex = "";
+                        for(let j=0; j<8; j++) hex += Math.random().toString(16).substring(2, 10) + " ";
+                        printToTerminal(`<span style="color:#0f0;">0x${(i*16).toString(16).padStart(4,'0')} ${hex}</span>`, false, true);
+                        await sleep(50);
+                    }
+                    printToTerminal(`<span style="color:#0f0; font-weight:bold; font-size:1.5em; text-shadow:0 0 5px #0f0;">[ACCESS GRANTED] -> Welcome to the mainframe.</span>`, false, true);
+                    showPrompt();
+                })();
+                return;
+            }
+            else if (cmd === 'tshark' || cmd === 'tcpdump') {
+                (async () => {
+                    hidePrompt();
+                    for(let i=0; i<15; i++) {
+                        const time = (Math.random() * 10).toFixed(4);
+                        const ip1 = `192.168.1.${Math.floor(Math.random()*255)}`;
+                        const ip2 = `${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}`;
+                        const protos = ['TCP', 'UDP', 'TLSv1.2', 'HTTP'];
+                        const p = protos[Math.floor(Math.random()*protos.length)];
+                        printToTerminal(`  ${time} ${ip1} → ${ip2} ${p} 66 49152 → 443 [SYN] Seq=0 Win=65535 Len=0 MSS=1460`);
+                        await sleep(100);
+                    }
+                    printToTerminal(`15 packets captured`);
+                    showPrompt();
+                })();
+                return;
+            }
+            else if (cmd === 'aircrack-ng') {
+                (async () => {
+                    hidePrompt();
+                    printToTerminal(`Opening wlan0mon...`);
+                    printToTerminal(`Waiting for beacon frame (BSSID: 00:14:6C:7E:40:80) on channel 6`);
+                    await sleep(800);
+                    printToTerminal(`[<span style="color:#0f0;">SUCCESS</span>] WPA handshake captured!`, false, true);
+                    printToTerminal(`Starting dictionary attack...`);
+                    for(let i=0; i<10; i++) {
+                        printToTerminal(`Trying key: ${Math.random().toString(36).substring(2,10)}`);
+                        await sleep(50);
+                    }
+                    printToTerminal(`KEY FOUND! [ hire_neil_macaro ]`);
+                    showPrompt();
+                })();
+                return;
+            }
+            else if (cmd === 'ollama') {
+                const promptStr = args.slice(1).join(' ');
+                if (promptStr === 'run llama3' || promptStr === 'run' || !promptStr) {
+                    (async () => {
+                        hidePrompt();
+                        printToTerminal("pulling manifest...");
+                        await sleep(500);
+                        printToTerminal("verifying sha256 digest...");
+                        await sleep(500);
+                        printToTerminal("writing manifest... success");
+                        
+                        const response = "I am a local AI model, but I can confidently compute that Neil Macaro is an excellent addition to your engineering team.";
+                        const responseDiv = document.createElement('div');
+                        responseDiv.className = 'term-line';
+                        termOut.appendChild(responseDiv);
+                        
+                        for(let i=0; i<response.length; i++) {
+                            responseDiv.innerHTML += response.charAt(i);
+                            termOut.scrollTop = termOut.scrollHeight;
+                            await sleep(30);
+                        }
+                        showPrompt();
+                    })();
+                    return;
+                } else {
+                    out(`Usage: ollama run llama3`);
+                }
+            }
+            else if (cmd === 'npm' || cmd === 'pip') {
+                if (target === 'install' || target === 'i') {
+                     (async () => {
+                        hidePrompt();
+                        printToTerminal(`Fetching packages...`);
+                        await sleep(400);
+                        printToTerminal(`[==========          ] 50%`);
+                        await sleep(400);
+                        printToTerminal(`[====================] 100%`);
+                        printToTerminal(`Added 1,234 packages from 400 contributors in 4.2s`);
+                        showPrompt();
+                    })();
+                    return;
+                } else {
+                    out(`Usage: ${cmd} install`);
+                }
+            }
+            else if (cmd === 'telnet' && target === 'towel.blinkenlights.nl') {
+                (async () => {
+                    hidePrompt();
+                    printToTerminal("Trying 2001:980:4600::1...");
+                    await sleep(500);
+                    printToTerminal("Connected to towel.blinkenlights.nl.");
+                    printToTerminal("Escape character is '^]'.");
+                    await sleep(1000);
+                    
+                    const scene1 = `      .========. \n      //  //\\  \\ \n      //  // \\  \\ \n      //  //   \\  \\ \n      //  //     \\  \\ \n   ----===||====---- \n`;
+                    const scene2 = `      .========. \n       \\\\  \\\\/  / \n       \\\\  \\\\ /  / \n       \\\\  \\\\   /  / \n       \\\\  \\\\     /  / \n   ----===||====---- \n`;
+                    
+                    const animDiv = document.createElement('div');
+                    animDiv.className = 'term-line';
+                    termOut.appendChild(animDiv);
+                    
+                    for(let i=0; i<6; i++) {
+                        animDiv.innerHTML = `<pre>${i%2===0 ? scene1 : scene2}</pre>`;
+                        termOut.scrollTop = termOut.scrollHeight;
+                        await sleep(500);
+                    }
+                    animDiv.innerHTML += `<br>Connection closed by foreign host.`;
+                    showPrompt();
+                })();
+                return;
+            }
             else if ((cmd === 'nano' || cmd === 'vim') && target) {
                 tty.inNano = true;
                 tty.nanoFile = target;
@@ -1051,13 +1238,11 @@
                 if(!executedFromGUI) { cmdInput.value = ''; setTimeout(() => cmdInput.focus(), 10); }
                 return;
             }
-
             else if (cmd === 'clear') {
                 termOut.innerHTML = '<div style="color: #333; font-style: italic; text-align: center; margin-bottom: 10px; user-select:none;">The terminal remembers everything.</div>';
                 if(!executedFromGUI) { cmdInput.value = ''; setTimeout(() => cmdInput.focus(), 10); }
                 return;
             }
-            
             else if (cmd === 'reboot') {
                 if (!tty.isRoot && !originalCmdStr.startsWith('sudo')) out("reboot: Permission denied (Use 'sudo')");
                 else {
@@ -1070,7 +1255,7 @@
                         setTimeout(() => {
                             termOut.innerHTML = '';
                             handleCommand('neofetch', true);
-                            termOut.innerHTML = ''; // Hide execution
+                            termOut.innerHTML = ''; 
                             handleCommand('neofetch', true);
                             showPrompt();
                         }, 1000);
@@ -1078,7 +1263,6 @@
                     return;
                 }
             }
-
             else if (['theme', 'cmatrix'].includes(cmd)) {
                 if (pipeCmd || redirectTarget) {
                     printToTerminal(`bash: ${cmd}: piping/redirection not supported for DOM-manipulating commands`);
@@ -1102,8 +1286,7 @@
                 if(!executedFromGUI) { cmdInput.value = ''; setTimeout(() => cmdInput.focus(), 10); }
                 return;
             }
-
-            if (cmd === 'ping') {
+            else if (cmd === 'ping') {
                 if (!target) {
                     printToTerminal("ping: missing host operand");
                 } else if (pipeCmd || redirectTarget) {
@@ -1124,7 +1307,10 @@
                 return;
             }
 
-            // --- Buffered Commands ---
+
+            // ==========================================
+            // BUFFERED COMMANDS (Using out() function)
+            // ==========================================
             
             if (cmd === 'about') {
                 out(document.getElementById('tpl-about-profile').innerHTML, true);
@@ -1151,13 +1337,10 @@
             else if (cmd === 'contact') {
                 out(document.getElementById('tpl-contact-details').innerHTML, true);
             }
-
             else if (cmd === 'download' && (target === 'resume' || target === 'pdf')) {
                 out("Generating PDF payload...");
                 out("Downloading Neil_Macaro_Resume.pdf...");
                 const a = document.createElement('a');
-                // IMPORTANT: Place your actual resume file in the same folder as this HTML file
-                // and name it "Neil_Macaro_Resume.pdf". 
                 a.href = "Neil_Macaro_Resume.pdf"; 
                 a.download = "Neil_Macaro_Resume.pdf";
                 document.body.appendChild(a);
@@ -1170,6 +1353,57 @@
                 } else {
                     out(`No match for domain "${target}".`);
                 }
+            }
+            else if (cmd === 'nslookup' || cmd === 'dig') {
+                const domain = target || "neilmacaro.com";
+                out(`Server:\t\t8.8.8.8\nAddress:\t8.8.8.8#53\n\nNon-authoritative answer:\nName:\t${domain}\nAddress: 192.168.254.1\n\n${domain}\ttext = "v=spf1 include:hire-me-please ~all"`);
+            }
+            else if (cmd === 'docker') {
+                if (target === 'ps') {
+                    out(`CONTAINER ID   IMAGE                  COMMAND                  CREATED        STATUS        PORTS                    NAMES\n9f8a3b2c1d4e   rag-assistant:latest   "python app.py"          3 days ago     Up 3 days     0.0.0.0:8080->80/tcp     rag-ai\n1a2b3c4d5e6f   bash-reminder:v2       "/bin/sh -c ./start"     2 weeks ago    Up 2 weeks    0.0.0.0:3000->3000/tcp   task-reminder\nd4e5f6g7h8i9   portfolio-web:prod     "nginx -g 'daemon off'"  5 hours ago    Up 5 hours    0.0.0.0:80->80/tcp       web-server`);
+                } else {
+                    out(`Usage: docker ps`);
+                }
+            }
+            else if (cmd === 'chmod') {
+                if (args.length < 3) out("chmod: missing operand");
+                else out(`Permissions updated for ${args[2]}: Read, Write, and EXECUTE.\nI am ready to execute tasks for your company.`);
+            }
+            else if (cmd === 'bofh') {
+                const excuses = [
+                    "System down due to static from plastic underwear.",
+                    "Solar flares.",
+                    "Routing issue on the dark web.",
+                    "The server is on a coffee break.",
+                    "Gremlins in the server room.",
+                    "Cosmic rays striking the RAM.",
+                    "A squirrel chewed through the fiber optic cable."
+                ];
+                out(excuses[Math.floor(Math.random() * excuses.length)]);
+            }
+            else if (cmd === 'coffee') {
+                out(`\n      {\n       {\n      }\n   _____\n  |     |\\_\n  |_____| /\n  \\_____/\n\nBrewing compilation juice... [OK]`);
+            }
+            else if (cmd === 'cbonsai') {
+                out(`\n        &&& &&  & &&\n      && &\\/&\\|& ()|/ @, &&\n      &\\/(/&/&||/& /_/)_&/_&\n   &() &\\/&|()|/&\\/ '%" & ()\n  &_\\_&&_\\ |& |&&/&__%_/_& &&\n&&   && & &| &| /& & % ()& /&&\n ()&_---()&\\&\\|&&-&&--%---()~\n     &&     \\|||\n             |||\n             |||\n             |||\n       , -=-~  .-^- _\n`);
+            }
+            else if (cmd === 'pipes') {
+                let pipes = "";
+                const chars = ['┏','┛','┗','┓','┃','━','┣','┫','┳','┻','╋'];
+                for(let i=0; i<10; i++) {
+                    let row = "";
+                    for(let j=0; j<40; j++) row += chars[Math.floor(Math.random()*chars.length)];
+                    pipes += row + "\n";
+                }
+                out(pipes);
+            }
+            else if (cmd === 'hire') {
+                out(`\n ██╗  ██╗██╗██████╗ ███████╗    ███╗   ███╗███████╗\n ██║  ██║██║██╔══██╗██╔════╝    ████╗ ████║██╔════╝\n ███████║██║██████╔╝█████╗      ██╔████╔██║█████╗  \n ██╔══██║██║██╔══██╗██╔══╝      ██║╚██╔╝██║██╔══╝  \n ██║  ██║██║██║  ██║███████╗    ██║ ╚═╝ ██║███████╗\n ╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚══════╝    ╚═╝     ╚═╝╚══════╝\n`, true);
+                window.open("mailto:macaroneil16@gmail.com?subject=Job%20Offer:%20We%20want%20you%20on%20our%20team!", "_blank");
+            }
+            else if (cmd === 'rickroll') {
+                out("Never gonna give you up...\nNever gonna let you down...\nNever gonna run around and desert you...");
+                window.open("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "_blank");
             }
             else if (cmd === 'su') {
                 if (!tty.isRoot && !originalCmdStr.startsWith('sudo')) out("su: Authentication failure");
@@ -1213,7 +1447,14 @@
             }
             else if (cmd === 'date') out(new Date().toString());
             else if (cmd === 'echo') out(args.slice(1).join(' ').replace(/['"]/g, ''));
-            else if (cmd === 'history') out(tty.history.map((c, i) => `  ${(i+1).toString().padStart(3, ' ')}  ${c}`).join('\n'));
+            else if (cmd === 'history') {
+                if (target === '-c') {
+                    tty.history = [];
+                    out("");
+                } else {
+                    out(tty.history.map((c, i) => `  ${(i+1).toString().padStart(3, ' ')}  ${c}`).join('\n'));
+                }
+            }
             else if (cmd === 'man') {
                 if (target === 'neil' || target === 'nmacaro') out("NEIL(1)                   User Commands                   NEIL(1)\n\nNAME\n       neil - Computer Engineering Undergraduate\n\nSYNOPSIS\n       neil [OPTIONS]... [TASKS]...\n\nDESCRIPTION\n       Executes tasks related to cybersecurity, network infrastructure, and bash scripting with extreme efficiency.");
                 else if (target === 'portfolio') out("PORTFOLIO(1)              User Commands              PORTFOLIO(1)\n\nNAME\n       portfolio - Web-based terminal resume\n\nDESCRIPTION\n       A functional HTML/JS terminal interface built to resemble a Linux window manager. Try using basic bash commands to navigate.");
@@ -1299,6 +1540,42 @@
             }
             else if (cmd === 'ipconfig' || cmd === 'ifconfig') {
                 out(`eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500\n        inet 192.168.1.147  netmask 255.255.255.0  broadcast 192.168.1.255\n        inet6 fe80::a23b:c4d5:e6f7:g8h9  prefixlen 64  scopeid 0x20<link>\n        ether 00:1A:2B:3C:4D:5E  txqueuelen 1000  (Ethernet)\n        RX packets 1337  bytes 1234567 (1.1 MiB)\n        TX packets 1024  bytes 987654 (964.5 KiB)\n\nlo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536\n        inet 127.0.0.1  netmask 255.0.0.0\n        loop  txqueuelen 1000  (Local Loopback)`);
+            }
+            else if (cmd === 'netstat') {
+                out(`Active Internet connections (w/o servers)\nProto Recv-Q Send-Q Local Address           Foreign Address         State      \ntcp        0      0 192.168.1.147:49152     104.18.32.7:443         ESTABLISHED\ntcp        0      0 192.168.1.147:53211     192.30.252.153:443      ESTABLISHED\ntcp        0     36 192.168.1.147:22        192.168.1.100:54321     ESTABLISHED\nudp        0      0 192.168.1.147:68        192.168.1.1:53          ESTABLISHED`);
+            }
+            else if (cmd === 'lscpu') {
+                out(`Architecture:            x86_64\n  CPU op-mode(s):        32-bit, 64-bit\n  Address sizes:         39 bits physical, 48 bits virtual\n  Byte Order:            Little Endian\nCPU(s):                  8\n  On-line CPU(s) list:   0-7\nVendor ID:               GenuineIntel\n  Model name:            Intel(R) Core(TM) i7-10700K CPU @ 3.80GHz\n  CPU family:            6\n  Model:                 165\n  Thread(s) per core:    2\n  Core(s) per socket:    4\n  Socket(s):             1\nBogoMIPS:                7599.80\nVirtualization features: \n  Virtualization:        VT-x`);
+            }
+            else if (cmd === 'free') {
+                out(`               total        used        free      shared  buff/cache   available\nMem:        16238412     4123456     8123456      123456     3991500    11500000\nSwap:        4194304           0     4194304`);
+            }
+            else if (cmd === 'who') {
+                const date = new Date().toISOString().split('T')[0];
+                out(`root     tty1         ${date} 09:00\n${tty.activeUser.padEnd(8)} tty2         ${date} 11:15`);
+            }
+            else if (cmd === 'startx' || cmd === 'gui') {
+                out(`Error: Server is already active for display 0\nIf server is no longer running, remove /tmp/.X0-lock\n\nWait... you are already running Hyprland (Wayland). No X11 needed here.`);
+            }
+            else if (cmd === 'roll') {
+                let max = parseInt(args[1]) || 6;
+                let res = Math.floor(Math.random() * max) + 1;
+                out(`🎲 Rolling 1d${max}... You rolled a ${res}!`);
+            }
+            else if (cmd === 'guess') {
+                let guess = parseInt(target);
+                if (!tty.guessSecret) tty.guessSecret = Math.floor(Math.random() * 100) + 1;
+                
+                if (!guess || isNaN(guess)) {
+                    out(`I'm thinking of a number between 1 and 100. Type 'guess <number>' to play!`);
+                } else {
+                    if (guess < tty.guessSecret) out("Higher!");
+                    else if (guess > tty.guessSecret) out("Lower!");
+                    else {
+                        out(`Correct! The number was ${tty.guessSecret}. A new number has been generated.`);
+                        tty.guessSecret = Math.floor(Math.random() * 100) + 1;
+                    }
+                }
             }
             else if (cmd === 'hash') {
                 const textToHash = args.slice(1).join(' ');
@@ -1407,46 +1684,70 @@
             }
             else if (cmd === 'help' || cmd === '?') {
                 const helpText = `Available Commands:
+  aircrack-ng    Simulate WPA handshake capture
   alias          Define command shortcuts
   apt update     Update package repositories
   bc <expr>      Basic calculator (e.g. bc 5+5)
+  bofh           Excuse generator for broken servers
   cal            Display a calendar
   cat <file>     Concatenate and print file contents
+  cbonsai        Generate ASCII bonsai tree
   cd <dir>       Change working directory
+  chmod <file>   Change file permissions
   clear          Clear the terminal screen
   cmatrix        Show terminal matrix effect
+  coffee         Brew compilation juice
   cowsay         ASCII cow speech
   curl <url>     Simulate fetching network data
   date           Print system date and time
+  dig            Lookup DNS records
+  docker ps      List running containers
   download       Download resources (try 'download resume')
   echo <text>    Print text to terminal
   fortune        Print a random adage or joke
+  free           Display amount of free and used memory
+  gcc/make       Simulate code compilation
   git            Version control mock
+  guess <num>    Play higher/lower number guessing game
+  gui/startx     Attempt to start graphical interface
+  hack           Attempt unauthorized mainframe access
   hash <text>    Generate a SHA256 mock hash
   help or ?      Display this help message
-  history        Show command history
+  hire           Execute ultimate CTA
+  history        Show command history (-c to clear)
+  hydra/john     Simulate brute-force password cracking
   ipconfig       Display network interface info
   ls             List directory contents
+  lscpu          Display information about the CPU
   mail           Open email client
   man <cmd>      Read manual pages (try 'man neil')
   mkdir <dir>    Create directory (root only)
   nano <file>    Open an interactive text editor
   neofetch       Display system and user information
+  netstat        Print network connections
   nmap <host>    Simulate network port scan
+  npm/pip        Simulate package installation
+  ollama         Run local mock AI
   open <url>     Open external links (try 'open linkedin')
   ping <host>    Send ICMP ECHO_REQUEST to network hosts
+  pipes          Generate retro ASCII pipes
   pwd            Print name of current/working directory
   python3        Enter interactive Python REPL
   rm <file>      Remove file or directory (root only)
+  roll <num>     Roll a dice with <num> sides
   sl             Cure for typing 'ls' too fast
+  sqlmap <url>   Simulate blind SQL injection
   ssh <host>     Simulate secure shell login
   sudo <cmd>     Execute a command as superuser
+  telnet         Communicate with another host
   theme <name>   Change CSS theme
   top/htop       Display Linux tasks
   traceroute     Print packet trace to network host
   tree           Display system directory tree
+  tshark         Dump and analyze network traffic
   uptime         Check how long terminal has been open
   weather        Display current weather mock
+  who            Show who is logged on
   whoami         Print effective user ID
   whois <user>   Display domain/user details
 
