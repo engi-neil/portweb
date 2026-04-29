@@ -30,7 +30,7 @@
             font-size: 12px;
             line-height: 1.4;
             background-image: radial-gradient(circle at 20% 50%, rgba(255,255,255,0.03) 0%, transparent 40%);
-            transition: background-color 0.3s, color 0.3s;
+            transition: background-color 0.3s, color 0.3s, opacity 0.2s ease-in-out;
         }
 
         /* Top Bar mimicking Hyprland/Waybar */
@@ -671,7 +671,8 @@
             'sqlmap', 'hydra', 'john', 'nslookup', 'dig', 'docker', 'make', 'gcc', 'chmod', 'coffee',
             'bofh', 'rickroll', 'hack', 'hire', 'cbonsai', 'pipes', 'tshark', 'tcpdump', 'aircrack-ng',
             'ollama', 'npm', 'pip', 'guess', 'telnet', 'exit', 'lsusb', 'lspci', 'dmesg', 'systemctl',
-            'msfconsole', 'gobuster', 'dirb', 'traffic', 'pldt',
+            'msfconsole', 'gobuster', 'dirb', 'traffic', 'pldt', 'meralco', 'angkas', 'joyride', 'mapua',
+            'kubectl', 'terraform', 'steghide', 'wireshark', 'cgminer', 'cpuminer',
             'about', 'education', 'leadership', 'skills', 'projects', 'certs', 'contact'
         ];
 
@@ -896,6 +897,15 @@
                 tty.history.push(originalCmdStr);
             }
 
+            // --- Hardcoded Exact Grep Intercept ---
+            const sanitizedCmd = originalCmdStr.replace(/\s+/g, ' ');
+            if (sanitizedCmd === 'grep "sleep" schedule.txt' || sanitizedCmd === "grep 'sleep' schedule.txt" || sanitizedCmd === "grep sleep schedule.txt") {
+                printToTerminal(originalCmdStr, true);
+                out("grep: schedule.txt: No matches found.");
+                if (!executedFromGUI) { cmdInput.value = ''; setTimeout(() => cmdInput.focus(), 10); }
+                return;
+            }
+
             // --- Intercept "make me a sandwich" (xkcd joke) ---
             if (originalCmdStr.includes("make me a sandwich")) {
                 printToTerminal(originalCmdStr, true);
@@ -1068,6 +1078,53 @@
                 } else {
                      out(`Usage: ${cmd} update`);
                 }
+            }
+            else if (cmd === 'meralco') {
+                (async () => {
+                    hidePrompt();
+                    document.body.style.opacity = '0';
+                    await sleep(3000);
+                    document.body.style.opacity = '1';
+                    printToTerminal(`[SYSTEM RECOVERY] Power restored. Mabuti pa ang kuryente, bumabalik.`);
+                    showPrompt();
+                })();
+                return;
+            }
+            else if (cmd === 'terraform') {
+                if (target === 'apply') {
+                    (async () => {
+                        hidePrompt();
+                        printToTerminal("terraform apply");
+                        await sleep(500);
+                        printToTerminal("Terraform will perform the following actions:\n  # aws_instance.portfolio_server will be created\n  + resource \"aws_instance\" \"portfolio_server\" { ... }");
+                        await sleep(500);
+                        printToTerminal("Plan: 3 to add, 0 to change, 0 to destroy.");
+                        await sleep(800);
+                        printToTerminal("aws_instance.portfolio_server: Creating...");
+                        await sleep(1000);
+                        printToTerminal("aws_instance.portfolio_server: Creation complete after 1s [id=i-0abcd1234efgh5678]");
+                        printToTerminal("<span style='color:#0f0; font-weight:bold;'>Apply complete! Resources: 3 added, 0 changed, 0 destroyed.</span>", false, true);
+                        showPrompt();
+                    })();
+                    return;
+                } else {
+                    out("Usage: terraform apply");
+                }
+            }
+            else if (cmd === 'cgminer' || cmd === 'cpuminer') {
+                (async () => {
+                    hidePrompt();
+                    printToTerminal("Mining Bitcoin to pay for Neil's tuition...\nPress Ctrl+C to stop (or just wait).");
+                    await sleep(1000);
+                    for(let i=0; i<15; i++) {
+                        let hash = Math.random().toString(16).substring(2, 10);
+                        printToTerminal(`[${new Date().toLocaleTimeString()}] Accepted ${hash} Diff 14K/10K GPU 0: 64.2C 2450RPM`);
+                        await sleep(150);
+                    }
+                    printToTerminal("Block solved! Wallet balance: 0.00000000 BTC. (Still broke)");
+                    showPrompt();
+                })();
+                return;
             }
             else if (cmd === 'dmesg') {
                 (async () => {
@@ -1454,7 +1511,29 @@
             else if (cmd === 'contact') {
                 out(document.getElementById('tpl-contact-details').innerHTML, true);
             }
-
+            else if (cmd === 'mapua') {
+                out("Analyzing academic load... [WARNING] Quarterm/Trisem survival rate: 1%. You are currently in the top percentile.");
+            }
+            else if (cmd === 'angkas' || cmd === 'joyride') {
+                out("Booking a rider... [ERROR] Rider asked you to cancel. Reason: Malayo po. Recommendation: MRT na lang.");
+            }
+            else if (cmd === 'kubectl') {
+                if (args[1] === 'get' && args[2] === 'pods') {
+                    out(`NAME                                READY   STATUS    RESTARTS   AGE\nnetwork-sec-pod-8b4f                1/1     Running   0          4y\nbash-scripting-controller-5c9g      1/1     Running   0          3y\nrag-ai-assistant-2a1e               1/1     Running   0          1y\nsleep-deprivation-daemon-9x9x       1/1     Running   1337       4y`);
+                } else {
+                    out("Usage: kubectl get pods");
+                }
+            }
+            else if (cmd === 'steghide') {
+                if (target === 'extract') {
+                    out(`Extracted data from "profile.jpg"...\nSecret message: "Hire me, I know how to find the hidden bugs."`);
+                } else {
+                    out("Usage: steghide extract");
+                }
+            }
+            else if (cmd === 'wireshark') {
+                out("Error: GUI cannot be loaded. Real hackers read hex dumps in the terminal anyway.");
+            }
             else if (cmd === 'download' && (target === 'resume' || target === 'pdf')) {
                 out("Generating PDF payload...");
                 out("Downloading Neil_Macaro_Resume.pdf...");
@@ -1620,7 +1699,9 @@
                 }
             }
             else if (cmd === 'top' || cmd === 'htop') {
-                out(`top - ${new Date().toLocaleTimeString()} up 1:23,  1 user,  load average: 0.04, 0.03, 0.00\nTasks:   4 total,   1 running,   3 sleeping,   0 stopped,   0 zombie\n%Cpu(s):  3.1 us,  1.2 sy,  0.0 ni, 95.7 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st\nKiB Mem :  1638400 total,   819200 free,   409600 used,   409600 buff/cache\n\n  PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND\n    1 nmacaro   20   0  162304  84300  28300 S   1.0  5.1   0:00.01 bash-scripting\n   42 nmacaro   20   0  538300 120400  45200 R   2.5  7.3   0:02.14 python3-ai\n  101 nmacaro   20   0   12300   3200   1100 S   0.0  0.2   0:00.00 network-sec\n  999 root      20   0       0      0      0 S   0.0  0.0   0:00.00 sys-kernel`);
+                let cpuUs = (Math.random() * 5 + 1).toFixed(1);
+                let memUsed = Math.floor(Math.random() * 200 + 400);
+                out(`top - ${new Date().toLocaleTimeString()} up 1:23,  1 user,  load average: 0.04, 0.03, 0.00\nTasks:   4 total,   1 running,   3 sleeping,   0 stopped,   0 zombie\n%Cpu(s):  ${cpuUs} us,  1.2 sy,  0.0 ni, 95.7 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st\nKiB Mem :  1638400 total,   819200 free,   ${memUsed}00 used,   409600 buff/cache\n\n  PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND\n    1 nmacaro   20   0  162304  84300  28300 S   1.0  5.1   0:00.01 bash-scripting\n   42 nmacaro   20   0  538300 120400  45200 R   ${cpuUs}  7.3   0:02.14 python3-ai\n  101 nmacaro   20   0   12300   3200   1100 S   0.0  0.2   0:00.00 network-sec\n  999 root      20   0       0      0      0 S   0.0  0.0   0:00.00 sys-kernel`);
             }
             else if (cmd === 'tree') {
                 if (currentDir === "") {
@@ -1828,6 +1909,7 @@
                 const helpText = `Available Commands:
   aircrack-ng    Simulate WPA handshake capture
   alias          Define command shortcuts
+  angkas/joyride Try booking a ride home
   apt update     Update package repositories
   bc <expr>      Basic calculator (e.g. bc 5+5)
   bofh           Excuse generator for broken servers
@@ -1835,6 +1917,7 @@
   cat <file>     Concatenate and print file contents
   cbonsai        Generate ASCII bonsai tree
   cd <dir>       Change working directory
+  cgminer        Mine crypto to pay for tuition
   chmod <file>   Change file permissions
   clear          Clear the terminal screen
   cmatrix        Show terminal matrix effect
@@ -1862,11 +1945,14 @@
   history        Show command history (-c to clear)
   hydra/john     Simulate brute-force password cracking
   ipconfig       Display network interface info
+  kubectl        Control Kubernetes clusters
   ls             List directory contents
   lscpu          Display information about the CPU
   lspci/lsusb    List USB/PCI hardware buses
   mail           Open email client
   man <cmd>      Read manual pages (try 'man neil')
+  mapua          Analyze academic environment
+  meralco        Test system power resilience
   mkdir <dir>    Create directory (root only)
   msfconsole     Launch Metasploit Framework
   nano <file>    Open an interactive text editor
@@ -1886,9 +1972,11 @@
   sl             Cure for typing 'ls' too fast
   sqlmap <url>   Simulate blind SQL injection
   ssh <host>     Simulate secure shell login
+  steghide       Extract hidden steganography data
   sudo <cmd>     Execute a command as superuser
   systemctl      Control the systemd system and service manager
   telnet         Communicate with another host
+  terraform      Manage cloud infrastructure
   theme <name>   Change CSS theme
   top/htop       Display Linux tasks
   traceroute     Print packet trace to network host
@@ -1900,6 +1988,7 @@
   who            Show who is logged on
   whoami         Print effective user ID
   whois <user>   Display domain/user details
+  wireshark      Network protocol analyzer
 
 Modifiers:
   > or >>        Redirect output to a file
