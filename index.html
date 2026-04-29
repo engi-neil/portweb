@@ -1337,6 +1337,7 @@
             else if (cmd === 'contact') {
                 out(document.getElementById('tpl-contact-details').innerHTML, true);
             }
+
             else if (cmd === 'download' && (target === 'resume' || target === 'pdf')) {
                 out("Generating PDF payload...");
                 out("Downloading Neil_Macaro_Resume.pdf...");
@@ -1399,7 +1400,7 @@
             }
             else if (cmd === 'hire') {
                 out(`\n ██╗  ██╗██╗██████╗ ███████╗    ███╗   ███╗███████╗\n ██║  ██║██║██╔══██╗██╔════╝    ████╗ ████║██╔════╝\n ███████║██║██████╔╝█████╗      ██╔████╔██║█████╗  \n ██╔══██║██║██╔══██╗██╔══╝      ██║╚██╔╝██║██╔══╝  \n ██║  ██║██║██║  ██║███████╗    ██║ ╚═╝ ██║███████╗\n ╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚══════╝    ╚═╝     ╚═╝╚══════╝\n`, true);
-                window.open("mailto:macaroneil16@gmail.com?subject=Job%20Offer:%20We%20want%20you%20on%20our%20team!", "_blank");
+                window.open("https://mail.google.com/mail/?view=cm&fs=1&to=macaroneil16@gmail.com&su=Job%20Offer:%20We%20want%20you%20on%20our%20team!", "_blank");
             }
             else if (cmd === 'rickroll') {
                 out("Never gonna give you up...\nNever gonna let you down...\nNever gonna run around and desert you...");
