@@ -181,8 +181,10 @@
         .term-prompt { color: var(--fg-main); font-weight: bold; }
         .term-prompt::after { content: "❯"; margin-left: 6px; margin-right: 6px;}
         
-        /* Python REPL Formatting */
+        /* Python & MSF REPL Formatting */
         .python-prompt::after { content: ">>>" !important; color: var(--fg-main); margin-left: 0; margin-right: 6px; font-weight: bold;}
+        .msf-prompt { color: #ff5555 !important; font-weight: bold; }
+        .msf-prompt::after { content: ">" !important; color: #ff5555; margin-left: 6px; margin-right: 6px;}
         
         /* Root User Formatting */
         .root-prompt { color: #ff5555 !important; }
@@ -272,6 +274,7 @@
         #tty2-pane .input-area .term-prompt { margin-right: 8px; }
         #tty2-pane .input-area .term-prompt::after { content: '$'; color: var(--fg-main); margin-left: 6px; margin-right: 0px; font-weight: bold; }
         #tty2-pane .input-area .python-prompt::after { content: '>>>' !important; margin-left: 0;}
+        #tty2-pane .input-area .msf-prompt::after { content: '>' !important; margin-left: 0; margin-right: 6px; color: #ff5555;}
         
         /* CRT Vignette & Screen Curvature */
         #tty2-pane::before {
@@ -618,6 +621,7 @@
                 awaitingPassword: false,
                 cmatrixInterval: null,
                 inPython: false,
+                inMsf: false,
                 inNano: false,
                 nanoFile: "",
                 nanoBuffer: [],
@@ -637,6 +641,7 @@
                 awaitingPassword: false,
                 cmatrixInterval: null,
                 inPython: false,
+                inMsf: false,
                 inNano: false,
                 nanoFile: "",
                 nanoBuffer: [],
@@ -665,7 +670,8 @@
             'netstat', 'lscpu', 'free', 'roll', 'startx', 'gui', 'who',
             'sqlmap', 'hydra', 'john', 'nslookup', 'dig', 'docker', 'make', 'gcc', 'chmod', 'coffee',
             'bofh', 'rickroll', 'hack', 'hire', 'cbonsai', 'pipes', 'tshark', 'tcpdump', 'aircrack-ng',
-            'ollama', 'npm', 'pip', 'guess', 'telnet',
+            'ollama', 'npm', 'pip', 'guess', 'telnet', 'exit', 'lsusb', 'lspci', 'dmesg', 'systemctl',
+            'msfconsole', 'gobuster', 'dirb', 'traffic', 'pldt',
             'about', 'education', 'leadership', 'skills', 'projects', 'certs', 'contact'
         ];
 
@@ -731,9 +737,10 @@
                 let promptText = `${tty.isRoot ? 'root' : tty.activeUser}@portfolio:${getPromptPath()}`;
                 let promptClass = tty.isRoot ? 'term-prompt root-prompt' : 'term-prompt';
                 
-                if (tty.inPython || tty.inNano) {
-                    promptText = '';
-                    promptClass = tty.inNano ? '' : 'term-prompt python-prompt';
+                if (tty.inPython || tty.inNano || tty.inMsf) {
+                    if (tty.inPython) { promptText = ''; promptClass = 'term-prompt python-prompt'; }
+                    else if (tty.inMsf) { promptText = 'msf6'; promptClass = 'term-prompt msf-prompt'; }
+                    else { promptText = ''; promptClass = ''; }
                 }
 
                 div.innerHTML = tty.inNano ? `<span class="term-cmd">${content}</span>` : `<span class="${promptClass}">${promptText}</span> <span class="term-cmd">${content}</span>`;
@@ -800,7 +807,8 @@
                 { text: 'Checking peripherals: Virtual Environment detected...', type: 'typewriter', delay: 700 },
                 { text: 'Mounting file system: /home/nmacaro...', type: 'typewriter', delay: 500 },
                 { text: '<br><div class="dash-separator">---------------------------------------------------------</div><br>', type: 'instant' },
-                { text: 'User: Neil Emmanuel R. Macaro', type: 'typewriter', delay: 200 },
+                { text: neofetchHtml, type: 'instant' },
+                { text: '<div style="font-weight:bold; margin-top: 16px;">User: Neil Emmanuel R. Macaro</div>', type: 'typewriter', delay: 200 },
                 { text: 'Role: Computer Engineering Undergraduate', type: 'typewriter', delay: 200 },
                 { text: 'Focus: Cybersecurity & Network Infrastructure', type: 'typewriter', delay: 200 },
                 { text: 'Status: ACTIVE [Ready to collaborate]', type: 'typewriter', delay: 500 },
@@ -895,6 +903,21 @@
                     printToTerminal("Okay.");
                 } else {
                     printToTerminal("What? Make it yourself.");
+                }
+                if (!executedFromGUI) { cmdInput.value = ''; setTimeout(() => cmdInput.focus(), 10); }
+                return;
+            }
+
+            // --- Metasploit Console Intercept ---
+            if (tty.inMsf) {
+                printToTerminal(originalCmdStr, true);
+                let msfCmd = originalCmdStr.trim();
+                
+                if (msfCmd === 'exit' || msfCmd === 'quit') {
+                    tty.inMsf = false;
+                    updatePromptView();
+                } else if (msfCmd) {
+                    printToTerminal(`[-] Unknown command: ${msfCmd.split(' ')[0]}`);
                 }
                 if (!executedFromGUI) { cmdInput.value = ''; setTimeout(() => cmdInput.focus(), 10); }
                 return;
@@ -1045,6 +1068,101 @@
                 } else {
                      out(`Usage: ${cmd} update`);
                 }
+            }
+            else if (cmd === 'dmesg') {
+                (async () => {
+                    hidePrompt();
+                    const lines = [
+                        "[    0.000000] Linux version 5.19.11-cybersec (gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0) #1 SMP PREEMPT_DYNAMIC",
+                        "[    0.000000] Command line: BOOT_IMAGE=/boot/vmlinuz-5.19.11 root=UUID=1234 ro quiet splash",
+                        "[    0.041231] x86/cpu: Microcode updated early to revision 0xf0, date = 2021-11-12",
+                        "[    0.153421] secureboot: Secure boot disabled",
+                        "[    0.412312] ACPI: Added _OSI(Linux-Dell-Video)",
+                        "[    1.231244] Mount-cache hash table entries: 131072 (order: 8, 1048576 bytes, linear)",
+                        "[    1.821034] usb 1-1: New USB device found, idVendor=046d, idProduct=c52b",
+                        "[    2.102341] e1000e 0000:00:1f.6 eth0: (PCI Express:2.5GT/s:Width x1) 00:1a:2b:3c:4d:5e",
+                        "[    2.102555] e1000e 0000:00:1f.6 eth0: Intel(R) PRO/1000 Network Connection",
+                        "[    3.451233] RTL8211E Gigabit Ethernet r8169-0-100:00: attached PHY driver",
+                        "[    4.112351] Bluetooth: BNEP (Ethernet Emulation) ver 1.3",
+                        "[    4.112355] Bluetooth: BNEP filters: protocol multicast",
+                        "[    5.667123] Initializing XFRM netlink socket"
+                    ];
+                    for (let l of lines) { printToTerminal(l); await sleep(100); }
+                    showPrompt();
+                })();
+                return;
+            }
+            else if (cmd === 'msfconsole') {
+                (async () => {
+                    hidePrompt();
+                    termOut.innerHTML = '';
+                    const logo = `
+     ,           ,
+    /             \\
+   ((__---,,,---__))
+      (_) O O (_)_________
+         \\ _ /            |\\
+          o_o \\   M S F   | \\
+               \\   _____  |  *
+                |||   WW|||
+                |||     |||
+            `;
+                    printToTerminal(`<pre style="color:#ff5555; font-weight:bold;">${logo}</pre>`, false, true);
+                    await sleep(500);
+                    printToTerminal(`       =[ metasploit v6.3.5-dev                           ]\n+ -- --=[ 2294 exploits - 1201 auxiliary - 409 post       ]\n+ -- --=[ 968 payloads - 45 encoders - 11 nops            ]\n+ -- --=[ 9 evasion                                       ]`);
+                    await sleep(500);
+                    tty.inMsf = true;
+                    showPrompt();
+                    updatePromptView();
+                })();
+                return;
+            }
+            else if (cmd === 'gobuster' || cmd === 'dirb') {
+                (async () => {
+                    hidePrompt();
+                    printToTerminal(`Starting gobuster directory enumeration...`);
+                    printToTerminal(`===============================================================`);
+                    await sleep(500);
+                    const dirs = [
+                        { path: '/images', status: 301, size: 234 },
+                        { path: '/admin', status: 403, size: 280 },
+                        { path: '/uploads', status: 200, size: 1024 },
+                        { path: '/api', status: 200, size: 512 },
+                        { path: '/secret_keys.txt', status: 200, size: 42 }
+                    ];
+                    for(let d of dirs) {
+                        printToTerminal(`[+] ${d.path.padEnd(20)} (Status: ${d.status}) [Size: ${d.size}]`);
+                        await sleep(300);
+                    }
+                    printToTerminal(`===============================================================`);
+                    printToTerminal(`Finished!`);
+                    showPrompt();
+                })();
+                return;
+            }
+            else if (cmd === 'traffic') {
+                (async () => {
+                    hidePrompt();
+                    printToTerminal(`Calculating route via EDSA...`);
+                    await sleep(1000);
+                    printToTerminal(`[<span style="color:#ff5555;">ERROR</span>] Timeout. ETA: Infinite.`, false, true);
+                    printToTerminal(`Recommendation: Just walk or use MRT.`);
+                    showPrompt();
+                })();
+                return;
+            }
+            else if (cmd === 'pldt') {
+                (async () => {
+                    hidePrompt();
+                    printToTerminal(`PING google.com (142.250.191.46): 56 data bytes`);
+                    for(let i=1; i<=4; i++) {
+                        await sleep(1000);
+                        printToTerminal(`Request timeout for icmp_seq ${i}`);
+                    }
+                    printToTerminal(`--- google.com ping statistics ---\n4 packets transmitted, 0 packets received, 100.0% packet loss`);
+                    showPrompt();
+                })();
+                return;
             }
             else if (cmd === 'traceroute' && target) {
                 (async () => {
@@ -1405,6 +1523,16 @@
                 out("Never gonna give you up...\nNever gonna let you down...\nNever gonna run around and desert you...");
                 window.open("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "_blank");
             }
+            else if (cmd === 'systemctl') {
+                if (args[1] === 'status' && args[2] === 'neil') {
+                    out(`● neil.service - Computer Engineering Undergraduate\n   Loaded: loaded (/etc/systemd/system/neil.service; enabled; vendor preset: enabled)\n   Active: <span style="color:#0f0;font-weight:bold;">active (running)</span> since Thu Apr 30 2026\n   Main PID: 1337 (neil)\n   Tasks: 4 (limit: 100)\n   Memory: 1.2 GB (Coffee Dependency: High)\n   CGroup: /system.slice/neil.service\n           └─1337 /usr/bin/neil --study --hack --build`, true);
+                } else {
+                    out(`Usage: systemctl status neil`);
+                }
+            }
+            else if (cmd === 'lsusb' || cmd === 'lspci') {
+                out(`Bus 002 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub\nBus 001 Device 004: ID 8087:0a2b Intel Corp. Bluetooth wireless interface\nBus 001 Device 003: ID 046d:c52b Logitech, Inc. Unifying Receiver\nBus 001 Device 005: ID 0b05:815f Realtek Semiconductor Corp. RTL8812AU 802.11a/b/g/n/ac 2T2R WLAN Adapter\nBus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub`);
+            }
             else if (cmd === 'su') {
                 if (!tty.isRoot && !originalCmdStr.startsWith('sudo')) out("su: Authentication failure");
                 else {
@@ -1454,6 +1582,9 @@
                 } else {
                     out(tty.history.map((c, i) => `  ${(i+1).toString().padStart(3, ' ')}  ${c}`).join('\n'));
                 }
+            }
+            else if (cmd === 'exit') {
+                out("logout... There is no escape from the terminal.");
             }
             else if (cmd === 'man') {
                 if (target === 'neil' || target === 'nmacaro') out("NEIL(1)                   User Commands                   NEIL(1)\n\nNAME\n       neil - Computer Engineering Undergraduate\n\nSYNOPSIS\n       neil [OPTIONS]... [TASKS]...\n\nDESCRIPTION\n       Executes tasks related to cybersecurity, network infrastructure, and bash scripting with extreme efficiency.");
@@ -1513,7 +1644,12 @@
                 else { vfs[target] = { type: 'dir', files: {} }; out(`mkdir: Directory '${target}' created.`); updatePromptView(); }
             }
             else if (cmd === 'rm') {
-                if (target === '-rf' && args[2] === '/') {
+                let isFeelings = (target === 'my_feelings/' || target === 'my_feelings') || (args[1] === '-rf' && (args[2] === 'my_feelings/' || args[2] === 'my_feelings'));
+                
+                if (isFeelings) {
+                    out(`rm: cannot remove 'my_feelings/': File is read-only and permanently embedded in memory.`);
+                }
+                else if (target === '-rf' && args[2] === '/') {
                     out(`<span style="color:#ff5555; font-weight:bold; font-size:1.2em; animation: blink 1s step-end infinite;">[KERNEL PANIC] - CRITICAL SYSTEM FAILURE AVERTED. NICE TRY.</span>`, true);
                 }
                 else if (!tty.isRoot) out(`rm: cannot remove '${target}': Permission denied (Use 'sudo')`);
@@ -1587,9 +1723,15 @@
                 }
             }
             else if (cmd === 'git') {
-                if (target === 'status') out('On branch main\nYour branch is up to date with "origin/main".\n\nnothing to commit, working tree clean');
-                else if (target === 'log') out(`commit 9f8a3b2c1d4e5f6g7h8i9j0k (HEAD -> main, origin/main)\nAuthor: Neil Macaro <macaroneil16@gmail.com>\nDate:   Wed Apr 29 10:40:50 2026 +0800\n\n    Added RAG AI project and updated certifications`);
-                else out(`git: '${target ? target : ''}' is not a git command. See 'git --help'.`);
+                if (target === 'status') {
+                    out('On branch main\nYour branch is up to date with "origin/main".\n\nnothing to commit, working tree clean');
+                } else if (target === 'log') {
+                    out(`commit 9f8a3b2c1d4e5f6g7h8i9j0k (HEAD -> main, origin/main)\nAuthor: Neil Macaro <macaroneil16@gmail.com>\nDate:   Wed Apr 29 10:40:50 2026 +0800\n\n    Added RAG AI project and updated certifications`);
+                } else if (target === 'push' && args[2] === '-f') {
+                    out(`Counting objects: 100% (3/3), done.\nWriting objects: 100% (3/3), 284 bytes | 284.00 KiB/s, done.\nTotal 3 (delta 1), reused 0 (delta 0)\nTo https://github.com/nmacaro/portfolio.git\n + 9f8a3b2...1a2b3c4 main -> main (forced update)\n\n[WARNING] You just overwrote your coworker's code. Prepare your resume.`);
+                } else {
+                    out(`git: '${target ? target : ''}' is not a git command. See 'git --help'.`);
+                }
             }
             else if (cmd === 'python3') {
                 tty.inPython = true;
@@ -1701,9 +1843,12 @@
   curl <url>     Simulate fetching network data
   date           Print system date and time
   dig            Lookup DNS records
+  dirb/gobuster  Enumerate server directories
+  dmesg          Print kernel ring buffer
   docker ps      List running containers
   download       Download resources (try 'download resume')
   echo <text>    Print text to terminal
+  exit           Logout of the terminal
   fortune        Print a random adage or joke
   free           Display amount of free and used memory
   gcc/make       Simulate code compilation
@@ -1719,9 +1864,11 @@
   ipconfig       Display network interface info
   ls             List directory contents
   lscpu          Display information about the CPU
+  lspci/lsusb    List USB/PCI hardware buses
   mail           Open email client
   man <cmd>      Read manual pages (try 'man neil')
   mkdir <dir>    Create directory (root only)
+  msfconsole     Launch Metasploit Framework
   nano <file>    Open an interactive text editor
   neofetch       Display system and user information
   netstat        Print network connections
@@ -1731,6 +1878,7 @@
   open <url>     Open external links (try 'open linkedin')
   ping <host>    Send ICMP ECHO_REQUEST to network hosts
   pipes          Generate retro ASCII pipes
+  pldt           Test your unstable connection
   pwd            Print name of current/working directory
   python3        Enter interactive Python REPL
   rm <file>      Remove file or directory (root only)
@@ -1739,10 +1887,12 @@
   sqlmap <url>   Simulate blind SQL injection
   ssh <host>     Simulate secure shell login
   sudo <cmd>     Execute a command as superuser
+  systemctl      Control the systemd system and service manager
   telnet         Communicate with another host
   theme <name>   Change CSS theme
   top/htop       Display Linux tasks
   traceroute     Print packet trace to network host
+  traffic        Check EDSA traffic status
   tree           Display system directory tree
   tshark         Dump and analyze network traffic
   uptime         Check how long terminal has been open
@@ -1908,9 +2058,10 @@ Modifiers:
                 let promptText = `${tty.isRoot ? 'root' : tty.activeUser}@portfolio:${getPromptPath()}`;
                 let promptClass = tty.isRoot ? "term-prompt root-prompt" : "term-prompt";
                 
-                if (tty.inPython || tty.inNano) {
-                    promptText = '';
-                    promptClass = tty.inNano ? '' : 'term-prompt python-prompt';
+                if (tty.inPython || tty.inNano || tty.inMsf) {
+                    if (tty.inPython) { promptText = ''; promptClass = 'term-prompt python-prompt'; }
+                    else if (tty.inMsf) { promptText = 'msf6'; promptClass = 'term-prompt msf-prompt'; }
+                    else { promptText = ''; promptClass = ''; }
                 }
 
                 cliPrompt.textContent = promptText;
