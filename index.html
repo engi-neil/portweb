@@ -769,6 +769,123 @@
                 </div>`;
                 out(html, true);
             }
+            else if (cmd === 'help' || cmd === '?') {
+                let baseHelp = `Available Commands:
+  about            View background information
+  aircrack-ng      Simulate WPA handshake capture
+  alias            Define command shortcuts
+  angkas/joyride   Try booking a ride home
+  apt/pacman       Update package repositories
+  bc <expr>        Basic calculator (e.g. bc 5+5)
+  bofh             Excuse generator for broken servers
+  cal              Display a calendar
+  cat <file>       Concatenate and print file contents
+  cbonsai          Generate ASCII bonsai tree
+  cd <dir>         Change working directory
+  certs            View certifications
+  cgminer          Mine crypto to pay for tuition
+  chmod <file>     Change file permissions
+  clear            Clear the terminal screen
+  cmatrix          Show terminal matrix effect
+  coffee           Brew compilation juice
+  contact          View contact information
+  cowsay           ASCII cow speech
+  curl <url>       Simulate fetching network data
+  date             Print system date and time
+  dig/nslookup     Lookup DNS records
+  dirb/gobuster    Enumerate server directories
+  dmesg            Print kernel ring buffer
+  docker ps        List running containers
+  download         Download resources (try 'download resume')
+  echo <text>      Print text to terminal
+  education        View educational background
+  exit             Logout of the terminal
+  fortune          Print a random adage or joke
+  free             Display amount of free and used memory
+  gcc/make         Simulate code compilation
+  git              Version control mock
+  guess <num>      Play higher/lower number guessing game
+  gui/startx       Attempt to start graphical interface
+  hack             Attempt unauthorized mainframe access
+  hash <text>      Generate a SHA256 mock hash
+  help / ?         Display this help message
+  hire             Execute ultimate CTA
+  history          Show command history (-c to clear)
+  hydra/john       Simulate brute-force password cracking
+  ipconfig         Display network interface info
+  kubectl          Control Kubernetes clusters
+  leadership       View leadership experience
+  ls               List directory contents
+  lscpu            Display information about the CPU
+  lspci/lsusb      List USB/PCI hardware buses
+  mail             Open email client
+  man <cmd>        Read manual pages (try 'man neil')
+  mapua            Analyze academic environment
+  meralco          Test system power resilience
+  mkdir <dir>      Create directory (root only)
+  msfconsole       Launch Metasploit Framework
+  nano/vim <file>  Open an interactive text editor
+  neofetch         Display system and user information
+  netstat          Print network connections
+  nmap <host>      Simulate network port scan
+  npm/pip          Simulate package installation
+  ollama           Run local mock AI
+  open <url>       Open external links (try 'open linkedin')
+  ping <host>      Send ICMP ECHO_REQUEST to network hosts
+  pipes            Generate retro ASCII pipes
+  pldt             Test your unstable connection
+  projects         View technical projects
+  pwd              Print name of current/working directory
+  python3          Enter interactive Python REPL
+  rm <file>        Remove file or directory (root only)
+  roll <num>       Roll a dice with <num> sides
+  skills           View technical skills
+  sl               Cure for typing 'ls' too fast
+  sqlmap <url>     Simulate blind SQL injection
+  ssh <host>       Simulate secure shell login
+  steghide         Extract hidden steganography data
+  su               Switch to root user
+  sudo <cmd>       Execute a command as superuser
+  systemctl        Control the systemd system and service manager
+  telnet           Communicate with another host
+  terraform        Manage cloud infrastructure
+  theme <name>     Change CSS theme
+  top/htop         Display Linux tasks
+  traceroute       Print packet trace to network host
+  traffic          Check EDSA traffic status
+  tree             Display system directory tree
+  tshark/tcpdump   Dump and analyze network traffic
+  uptime           Check how long terminal has been open
+  weather          Display current weather mock
+  who              Show who is logged on
+  whoami           Print effective user ID
+  whois <user>     Display domain/user details
+  wireshark        Network protocol analyzer
+
+Modifiers:
+  > or >>          Redirect output to a file
+  |                Pipe output (grep, wc, cowsay)`;
+
+                if (isSadboiMode) {
+                    baseHelp += `\n\n---------------------------------------------------------
+SADBOI MODE EXCLUSIVES:
+  burn <file>      Attempt to delete permanent memories
+  drink            Bottoms up. Pang-flush lang ng memories.
+  dump-core        Dump emotional core to /dev/null
+  handshake        Simulate a failed connection
+  health-check     Check emotional vitals
+  hop-count        Trace path to 'The One Who Got Away'
+  lifetime         Ben&Ben Reimagined
+  overtime         Late night engineering grind
+  playlist         Relapse ka muna
+  seen             Message status tracker
+  signal-strength  Check past memories strength
+  unsend           Attempt to unsend what was already felt
+  why              Ask the universe why`;
+                }
+
+                out(baseHelp);
+            }
             else if (cmd === 'ls') {
                 if (currentDir === "") {
                     let rootDirs = Object.keys(vfs).map(k => `[DIR]  ${k}`).join('\n');
@@ -811,7 +928,6 @@
             else if (cmd === 'projects') out(document.getElementById('tpl-projects-bash').innerHTML + document.getElementById('tpl-projects-rag').innerHTML, true);
             else if (cmd === 'certs') out(document.getElementById('tpl-certs-cisco').innerHTML, true);
             else if (cmd === 'contact') out(document.getElementById('tpl-contact-details').innerHTML, true);
-            else if (cmd === 'help') out("Available core commands:\ncd, ls, cat, clear, neofetch, theme, uptime, top, ps, weather, fortune, about, projects, contact...");
             else out(`bash: ${cmd}: command not found`);
 
             // --- Output Resolution ---
