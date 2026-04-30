@@ -448,8 +448,8 @@
         };
 
         const ttys = [
-            { history: [], historyIndex: -1, aliases: {}, activeUser: "nmacaro", container: "tty1-content", out: "terminal-output1", in: "cmd-input1", prompt: "cli-prompt1", isRoot: false, awaitingPassword: false, cmatrixInterval: null, inPython: false, inMsf: false, inNano: false, nanoFile: "", nanoBuffer: [], lastFortuneIndex: -1, guessSecret: null },
-            { history: [], historyIndex: -1, aliases: {}, activeUser: "guest", container: "tty2-content", out: "terminal-output2", in: "cmd-input2", prompt: "cli-prompt2", isRoot: false, awaitingPassword: false, cmatrixInterval: null, inPython: false, inMsf: false, inNano: false, nanoFile: "", nanoBuffer: [], lastFortuneIndex: -1, guessSecret: null }
+            { history: [], historyIndex: -1, aliases: {}, activeUser: "nmacaro", container: "tty1-content", out: "terminal-output1", in: "cmd-input1", prompt: "cli-prompt1", isRoot: false, awaitingPassword: false, cmatrixInterval: null, inPython: false, inMsf: false, inNano: false, nanoFile: "", nanoBuffer: [], lastFortuneIndex: -1, lastLyricIndex: -1, guessSecret: null },
+            { history: [], historyIndex: -1, aliases: {}, activeUser: "guest", container: "tty2-content", out: "terminal-output2", in: "cmd-input2", prompt: "cli-prompt2", isRoot: false, awaitingPassword: false, cmatrixInterval: null, inPython: false, inMsf: false, inNano: false, nanoFile: "", nanoBuffer: [], lastFortuneIndex: -1, lastLyricIndex: -1, guessSecret: null }
         ];
 
         let activeTtyIndex = 0;
@@ -479,7 +479,7 @@
             'about', 'education', 'leadership', 'skills', 'projects', 'certs', 'contact',
             /* Sadboi Commands */
             'playlist', 'unsend', 'seen', 'relapse', 'handshake', 'hop-count', 
-            'signal-strength', 'dump-core', 'health-check', 'drink', 'burn', 'why', 'lifetime', 'overtime'
+            'signal-strength', 'dump-core', 'health-check', 'drink', 'burn', 'why', 'lyrics', 'overtime'
         ];
 
         const themes = {
@@ -509,6 +509,22 @@
             "Bakit pa tayo magta-try-catch kung alam ko namang sasaluhin mo ako?",
             "Hindi lahat ng naka-open port, handang tumanggap ng connection."
         ];
+        
+        const sadLyrics = [
+            `"Saan na 'to patungo? Hindi ko na kasi alam..."\n— IV Of Spades (Mundo)`,
+            `"Huwag kang tumingin, 'di mo ba napapansin na ako'y nahihirapan na?"\n— IV Of Spades (Come Inside Of My Heart)`,
+            `"Kalapastangan ang 'di ka ibigin, kalokohan ang 'di ka isipin. Kung ang mundo ay biglang gugunawin, ikaw ang una kong hahanapin."\n— fitterkarma (Kalapastangan)`,
+            `"Mabubuhay akong nagsisisi kapag 'sang araw hindi kita mapapangiti."\n— fitterkarma (Kalapastangan)`,
+            `"Kasi mahal na mahal kita wala na kong sasabihin pang iba. Kasi sinta mahal na mahal kita."\n— Zild (Atasha)`,
+            `"Sino ba ang pipiliin ko? Wala naman akong pagpipilian..."\n— Zild`,
+            `"Hindi ko naman yata ikamamatay kung hindi ko mahawakan ang iyong kamay... pero hindi ko sinabing ayaw ko."\n— Shirebound & Busking (Waltz of Four Left Feet)`,
+            `"Giliw kung pahihintulutan mo ako, ipagkakatiwala ko sana sa 'yo ang puso ko."\n— Shirebound & Busking (Pahintulot)`,
+            `"Ang hirap kalimutan ng mga sandaling ikaw pa ang paboritong tambayan."\n— Jan Roberts (Hirap Kalimutan)`,
+            `"Ang patlang sa pagitan nating dalawa, kailanma'y hindi na mapupunan."\n— Jan Roberts (Patlang)`,
+            `"Maisayaw man lang kita bago matapos ang gabi, kahit alam kong bukas, iba na ang iyong katabi."\n— Frank Ely (Maisayaw)`,
+            `"Kailangan mo ba ang puso ko? Kasi matagal ko nang ibinigay, hindi mo lang napapansin."\n— Frank Ely (Kailangan Mo Ba Ang Puso Ko)`
+        ];
+
         const normalQuotes = [
             "The best way to predict the future is to invent it.",
             "It compiles! Ship it!",
@@ -783,9 +799,11 @@
                 } else if (sCmd === 'why') {
                     printToTerminal(originalCmdStr, true);
                     printToTerminal(`Because sometimes, 'I love you' is just a string that didn't match the variable.`);
-                } else if (sCmd === 'lifetime') {
+                } else if (sCmd === 'lyrics') {
                     printToTerminal(originalCmdStr, true);
-                    printToTerminal(`Was it the right time? Or was it just a reimaged version of a dream? Playing: Lifetime (Reimagined Version) - Ben&Ben.`);
+                    let randIdx; do { randIdx = Math.floor(Math.random() * sadLyrics.length); } while (randIdx === tty.lastLyricIndex && sadLyrics.length > 1);
+                    tty.lastLyricIndex = randIdx;
+                    printToTerminal(sadLyrics[randIdx]);
                 } else if (sCmd === 'overtime') {
                     printToTerminal(originalCmdStr, true);
                     printToTerminal(`Studying since 8:00 PM. Current time: 3:00 AM. Computer Engineering is temporary, but the degree is forever (sana).`);
@@ -1221,7 +1239,7 @@ SADBOI EXCLUSIVES:
   handshake        Simulate a failed connection
   health-check     Check emotional vitals
   hop-count        Trace path to 'The One Who Got Away'
-  lifetime         Ben&Ben Reimagined
+  lyrics           Generate sad OPM lyrics to make it worse
   overtime         Late night engineering grind
   playlist         Relapse ka muna
   seen             Message status tracker
